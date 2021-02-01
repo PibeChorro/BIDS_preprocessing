@@ -57,6 +57,10 @@ do.smoothing        = 0; %Smoothing Flag, set to 1 if you want to smooth.
 do.smoothNorm       = 'mni'; % Smooth normalize data = 'mni', native data = 'native' or 'both'
 do.smoothingSize    = 6;
 
+% already assign realignment parameter names
+raParamNames = {'x-Axis', 'y-Axis', 'z-Axis',...
+    'Pitch','Roll','Yaw'};
+
 %% OPEN SPM
 spm fmri;
 
@@ -225,6 +229,41 @@ for ss = 1:length(subNames) % For all subjects do each ...
             if ~success
                 warning(message)
             end
+            
+            % read in the created realignment text file and plot them in a
+            % firgure and save the figure 
+            try
+                % We assume only one textfile in each run directory. 
+                % TODO: make this more flexible and more secure
+                ra_dir = fullfile(realigned_dir, subNames{ss}, 'func', folderContent(run).name,'*.txt');
+                [fid, mes] = fopen(fullfile(ra_dir.folder,ra_dir.name));
+                realignmentMatrix = textscan(fid, '%f%f%f%f%f%f');
+                % create figure to plot realigment parameters in
+                fig = figure;
+                % create a subplot for the tranlation
+                subplot(2,1,1);
+                hold on
+                for param = 1:3
+                    plot(realignmentMatrix{param},'DisplayName',raParamNames{param});
+                end
+                hold off
+                legend();       % NOTICE - this is broken. The legend shows the first label correctly and the rest overlaps
+                subplot(2,1,2);
+                hold on
+                for param = 4:6
+                    plot(realignmentMatrix{param},'DisplayName',raParamNames{param});
+                end
+                hold off
+                legend();       % NOTICE - this is broken. The legend shows the first label correctly and the rest overlaps
+                
+                % save and close figure. Close realignment file
+                savefig(fullfile(realigned_dir, subNames{ss}, 'func', folderContent(run).name,'realignmentPlot'));
+                close(fig);
+                fclose(fid);
+            catch
+                warning(mes)
+            end
+            
             % move the mat file that is created in this step
             [success,message] = movefile(string(fullfile(raw_func_nifti_dir, folderContent(run).name,'*uw.mat')), ...
                 fullfile(realigned_dir, subNames{ss}, 'func', folderContent(run).name));
@@ -232,8 +271,6 @@ for ss = 1:length(subNames) % For all subjects do each ...
                 warning(message)
             end
         end
-        % !!!!!! please here add a part to plot and check the realignment
-        % parameters!!!!!
         % TODO: create JSON file containing processing information and
         % store it BIDS conform
     end
