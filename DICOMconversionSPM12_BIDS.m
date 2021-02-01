@@ -27,7 +27,7 @@ end
 prefix = input (['Please specify the prefix of your participant data.\n' ...
     '(like p for participant or s for subject. It has to be unique so that only subject folders are selected):\n'],'s');
 
-dic_struct_dir  = 'struct_64_channel/';
+dic_struct_dir  = 'anat/';
 
 raw_dir         = fullfile(root_dir, 'raw_data');
 
