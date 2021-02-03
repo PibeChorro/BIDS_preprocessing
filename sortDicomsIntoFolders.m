@@ -27,13 +27,11 @@ workingDir = pwd;
 %-------------------------------------------------------------------------%
 % DEFINE path and get relevant filenames.
 %-------------------------------------------------------------------------%
-pathname = uigetdir(homedir, ['Please specify the directory that contains your subjectfolders'...
+source_dir = uigetdir(homedir, ['Please specify the directory that contains your subjectfolders'...
     '(ideally it should be named "source_data")']);
 
-if pathname == 0
+if source_dir == 0
     error('No folder was selected --> I terminate the script')
-else
-    cd(pathname);
 end
 
 %% the structure that contains the information about sequences
@@ -67,7 +65,7 @@ prefix = input (['Please specify the prefix of your participant data.\n' ...
 
 fprintf('\n\n');
 
-sub = dir([prefix '*']);
+sub = dir(fullfile(source_dir,[prefix '*']));
 
 if isempty(sub)
     error('The specified directory does not contain any folders starting with the specified prefix');
@@ -75,9 +73,9 @@ end
 
 %-------------------------------------------------------------------------%
 % DEFINE file extensions you want sort
-extensions = {'*.IMA'}; % extension you care about
-% TODO: It seems like dir() (at least on MacOS) is not case sensitive, so I
-% only add one IMA format. Change for more robust preprocessing
+extensions = {'**.IMA','**.ima'}; % extension you care about
+% IMPORTANT: It seems like dir() (at least on MacOS) is not case sensitive, but 
+% spm_select('FPList',...) is, so we use spm_select
 %-------------------------------------------------------------------------%
 
 %% check if the selected files are only folders and that there are no hidden folders selected
@@ -95,12 +93,12 @@ end
 
 % Outer loop for the subjects
 for f = 1:length(sub)
-    subjectDir = fullfile (pathname,sub(f).name);
+    subjectDir = fullfile (source_dir,sub(f).name);
     %% Move images from seperate sequences in different folders
     % fill an array with all relevent data files
     dicoms = [];
     for ext = 1:length(extensions)
-        dicoms = [dicoms; dir(fullfile(subjectDir, extensions{ext}))];
+        dicoms = [dicoms; spm_select('FPList', subjectDir, extensions{ext})];
     end
     
     % check if the dicoms array is empty. 
@@ -116,19 +114,16 @@ for f = 1:length(sub)
                 'You better go check this one out before you proceed.\n\n'])
         end
     else
-        % get all DICOMS in a cell array
-        filenames = {dicoms(:).name}'; % relevant filenames
-
         %-----------------------------------------------------------------%
         % Look for different sequences and establish a folder each. 
         %-----------------------------------------------------------------%
-        for tmpFile = 1:length(filenames) % go through all relevant files
-            fileName = regexp(filenames(tmpFile),'\.','split'); % returns list of splitted parts of filename: 
-            seqNum = str2double(fileName{1}{4}); % 4th part = sequence number
+        for tmpFile = 1:length(dicoms) % go through all relevant files
+            fileName = regexp(dicoms(tmpFile,:),'\.','split'); % returns list of splitted parts of filename: 
+            seqNum = str2double(fileName{4}); % 4th part = sequence number
             if ~isfolder(fullfile(subjectDir, num2str(seqNum,formatSpec))) % if not existing, make folder
                 mkdir(fullfile(subjectDir, num2str(seqNum,formatSpec)))
             end
-            status = movefile(string(fullfile(subjectDir,filenames(tmpFile))),...
+            status = movefile(string(dicoms(tmpFile,:)),...
                 fullfile(subjectDir,num2str(seqNum,formatSpec))); % move file into sequence folder
         end
     end
@@ -147,9 +142,9 @@ for f = 1:length(sub)
             % read in the first dicom header
             dicoms = [];
             for ext = 1:length(extensions)
-                dicoms = [dicoms; dir(fullfile(currentDir,extensions{ext}))];
+                dicoms = [dicoms; spm_select('FPList', currentDir, extensions{ext})];
             end
-            first_dicom = spm_dicom_headers(fullfile(currentDir,dicoms(1).name));
+            first_dicom = spm_dicom_headers(dicoms(1,:));
             % read out the 'SeriesDescription' field
             series_description = first_dicom{1}.SeriesDescription;
             sequenceIndex = find (strcmp(log.sequenceDescriptions,series_description));
@@ -201,9 +196,9 @@ for f = 1:length(sub)
                 %count all dicoms in the folder
                 dicoms = [];
                 for ext = 1:length(extensions)
-                    dicoms = [dicoms; dir(fullfile(currentDir,extensions{ext}))];
+                    dicoms = [dicoms; spm_select('FPList', currentDir, extensions{ext})];
                 end
-                nrOfScans = length(dicoms);
+                nrOfScans = length(dicoms(:,1));
                 
                 % only if the number of dicoms in the folder is equal to
                 % the number asigned above, the folder accepted as a 'run'
@@ -222,4 +217,3 @@ end
 % Safe the log in case you want to rerun the script on more subjects
 % but don't want to reenter all the sequence information
 save(sequenceInfoName,'log')
-cd(workingDir);
