@@ -42,7 +42,14 @@ end
 
 prefix = input (['Please specify the prefix of your participant data.\n' ...
     '(like p for participant or s for subject. It has to be unique so that only subject folders are selected):\n'],'s');
-dic_struct_dir = 'struct_64_channel/';
+dic_struct_dir = 'anat';
+
+%-------------------------------------------------------------------------%
+% DEFINE file extensions of DICOMs you care about
+extensions = {'**.IMA','**.ima'}; % extension you care about
+% IMPORTANT: It seems like dir() (at least on MacOS) is not case sensitive,
+% but spm_select('FPList',...) is
+%-------------------------------------------------------------------------%
 
 
 %% Decide what to do
@@ -51,9 +58,9 @@ do.overwrite        = 1;
 do.realignment      = 0; % 1 = realigning and unwarp;
 do.slice_time_corr  = 0; % slice time correction (using slice TIMES); 
 do.coregistration   = 'auto'; % 'manual' or 'auto';
-do.segmentation     = 0;
+do.segmentation     = 1;
 do.normalisation    = 1; %JB 1 (Do (segmentation,) normalisation & smoothnig together)
-do.smoothing        = 0; %Smoothing Flag, set to 1 if you want to smooth. 
+do.smoothing        = 1; %Smoothing Flag, set to 1 if you want to smooth. 
 do.smoothNorm       = 'mni'; % Smooth normalize data = 'mni', native data = 'native' or 'both'
 do.smoothingSize    = 6;
 
@@ -66,7 +73,7 @@ spm fmri;
 
 % create a BIDS conform directory structure for the NIFTIS
 % first we need to create a cell containing the subject names
-pipelineName = 'spm12';
+pipelineName = 'spm12-preproc';
 folders = dir(fullfile(raw_dir,[prefix, '*']));
 subNames = {folders(:).name}; 
 
@@ -122,30 +129,6 @@ for ss = 1:length(subNames) % For all subjects do each ...
     spm_mkdir (normalized_dir, subNames{ss}, 'func', {folderContent(:).name});
     spm_mkdir (normalized_dir,subNames{ss}, 'anat');
     spm_mkdir (smoothed_dir, subNames{ss}, 'func', {folderContent(:).name});
-    
-    %% load a dicom header that contains information needed for analysis
-    dicom_dir           = fullfile(source_dir,subNames{ss},'func',folderContent(1).name);
-    % select all dicom files from the current run
-    dicom_files  = dir(fullfile(dicom_dir,'*.ima')); % Get only DICOM files
-    if isempty(dicom_files)
-        % TODO: check what is going on here!
-        dicom_files = spm_select('FPList', curr_dir, '.*IMA');
-        if isempty(dicom_files)
-            warning('NO *ima nor *IMA  FILES SELECTED FOR SLICE TIME CORRECTION - PROBABLY WRONG PATH/FILENAME: process stopped. Press Enter to continue.')
-            disp(['CURRENT PATH:  ' dicom_dir]);
-            pause;
-        end
-    end
-
-    % select only one from them
-    dicom_file   = fullfile(dicom_dir,dicom_files(end).name); % Get one image, e.g. the last one
-    fprintf('=> determining acquisition parameters from: \n %s \n', dicom_file);
-
-    hdr                         = spm_dicom_headers(dicom_file);
-    sequence.N_slices           = hdr{1}.Private_0019_100a;         % Number of slices
-    sequence.TR                 = hdr{1}.RepetitionTime/1000;       % TR
-    [~, sequence.slice_order]   = sort(hdr{1}.Private_0019_1029);   % slice order
-    sequence.sliceTstamps       = hdr{1}.Private_0019_1029;         % slice times in milliseconds
     
     %% STARTING PREPROCESSING
     %% Realignment: Estimate & unwarp
@@ -235,7 +218,7 @@ for ss = 1:length(subNames) % For all subjects do each ...
             try
                 % We assume only one textfile in each run directory. 
                 % TODO: make this more flexible and more secure
-                ra_dir = fullfile(realigned_dir, subNames{ss}, 'func', folderContent(run).name,'*.txt');
+                ra_dir = dir(fullfile(realigned_dir, subNames{ss}, 'func', folderContent(run).name,'*.txt'));
                 [fid, mes] = fopen(fullfile(ra_dir.folder,ra_dir.name));
                 realignmentMatrix = textscan(fid, '%f%f%f%f%f%f');
                 % create figure to plot realigment parameters in
@@ -248,6 +231,8 @@ for ss = 1:length(subNames) % For all subjects do each ...
                 end
                 hold off
                 legend();       % NOTICE - this is broken. The legend shows the first label correctly and the rest overlaps
+                
+                % create a subplot for the rotation
                 subplot(2,1,2);
                 hold on
                 for param = 4:6
@@ -282,6 +267,29 @@ for ss = 1:length(subNames) % For all subjects do each ...
         folderContent = dir(fullfile(realigned_dir, subNames{ss}, 'func', 'run*')); 
         fprintf('SLICE TIME CORRECTION\n\n')
         for run=1:nruns % for number of runs
+            % load a dicom header that contains information needed for analysis
+            dicom_dir           = fullfile(source_dir,subNames{ss},'func',folderContent(run).name);
+            % select all dicom files from the current run
+            dicom_files = [];
+            for ext = 1:length(extensions)
+                dicom_files = [dicom_files; spm_select('FPList', dicom_dir, extensions{ext})];
+            end
+            if isempty(dicom_files)
+                % TODO: check what is going on here!
+                warning('NO *ima nor *IMA  FILES SELECTED FOR SLICE TIME CORRECTION - PROBABLY WRONG PATH/FILENAME: process stopped. Press Enter to continue.')
+                disp(['CURRENT PATH:  ' dicom_dir]);
+                pause;
+            end
+
+            % select only one from them
+            dicom_file   = dicom_files(end,:); % Get one image, e.g. the last one
+            fprintf('=> determining acquisition parameters from: \n %s \n', dicom_file);
+
+            hdr                         = spm_dicom_headers(dicom_file);
+            sequence.N_slices           = hdr{1}.Private_0019_100a;         % Number of slices
+            sequence.TR                 = hdr{1}.RepetitionTime/1000;       % TR
+            [~, sequence.slice_order]   = sort(hdr{1}.Private_0019_1029);   % slice order
+            sequence.sliceTstamps       = hdr{1}.Private_0019_1029;         % slice times in milliseconds
             
             % select files to slice time correct
             nifti_files = dir (fullfile(realigned_dir, subNames{ss}, 'func', folderContent(run).name ,'/uf*.nii')); % AFTER REALINGMENT!
@@ -373,7 +381,7 @@ for ss = 1:length(subNames) % For all subjects do each ...
             fprintf('EPI scans [meanEPI] -> Structural \n');
             
             alltargets = {}; %JB It's necessary to initialize alltargets as a cell array, as this can prevent the vertcat error if paths from different runs have different character lengths.
-            for r = 1:nruns
+            for run = 1:nruns
                 dir_sessdata = fullfile(coregistered_dir, subNames{ss}, 'func',  folderContent(run).name);
                 dirfiles     = spm_select('FPList',dir_sessdata, ['^auf' '.*nii']);
                 if strcmp(dirfiles,'')
@@ -497,13 +505,13 @@ for ss = 1:length(subNames) % For all subjects do each ...
         alltargets{end+1} = meanEpi;
         alltargets{end+1} = dir_raw_structImg; % add anatomical image to normalise
         
-        matlabbatch{1}.spm.spatial.normalise.write.subj.def = {fullfile(struct_defForward.folder, struct_defForward.name)};
-        matlabbatch{1}.spm.spatial.normalise.write.subj.resample = alltargets;
-        matlabbatch{1}.spm.spatial.normalise.write.woptions.bb = [-78 -112 -70
+        matlabbatch{1}.spm.spatial.normalise.write.subj.def         = {fullfile(struct_defForward.folder, struct_defForward.name)};
+        matlabbatch{1}.spm.spatial.normalise.write.subj.resample    = alltargets;
+        matlabbatch{1}.spm.spatial.normalise.write.woptions.bb      = [-78 -112 -70
             78  76   85];
-        matlabbatch{1}.spm.spatial.normalise.write.woptions.vox = [2 2 2];
-        matlabbatch{1}.spm.spatial.normalise.write.woptions.interp = 4;
-        matlabbatch{1}.spm.spatial.normalise.write.woptions.prefix = 'w';
+        matlabbatch{1}.spm.spatial.normalise.write.woptions.vox     = [2 2 2];
+        matlabbatch{1}.spm.spatial.normalise.write.woptions.interp  = 4;
+        matlabbatch{1}.spm.spatial.normalise.write.woptions.prefix  = 'w';
         
         jobs = matlabbatch;
         spm('defaults', 'FMRI');

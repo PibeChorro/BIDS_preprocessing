@@ -9,12 +9,12 @@
 
 %%
 
-function bold_json = BIDS_bold_json(curDir, dicomDir)
+function bold_json = BIDS_bold_json(curDir, dicomDir,bold_json_name)
 
 hdr = spm_dicom_headers(dicomDir);
 
 % you can also have acq- and proc-, but these are optional
-bold_json_name = fullfile([curDir '_bold.json']);
+bold_json_name = fullfile([curDir bold_json_name]);
 
 %% Required fields
 % REQUIRED Name of the task (for resting state use the ?rest? prefix). No two tasks
