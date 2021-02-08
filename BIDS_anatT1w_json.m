@@ -15,7 +15,7 @@ function anat_json = BIDS_anatT1w_json(curDir, dicomDir,anat_json_name)
 hdr = spm_dicom_headers(dicomDir);
 
 % you can also have acq- and proc-, but these are optional
-anat_json_name = fullfile([curDir anat_json_name]);
+anat_json_name = fullfile([curDir anat_json_name '.json']);
 %%
 % Assign the fields in the Matlab structure that can be saved as a json.
 % all REQUIRED /RECOMMENDED /OPTIONAL metadata fields for Magnetic Resonance Imaging data
@@ -23,28 +23,28 @@ anat_json_name = fullfile([curDir anat_json_name]);
 %% Scanner Hardware metadata fields
 
 % RECOMMENDED Manufacturer of the equipment that produced the composite instances.
-anat_json.Manufacturer = ' ';
+anat_json.Manufacturer = hdr{1}.Manufacturer;
 
 % RECOMMENDED Manufacturer`s model name of the equipment that produced the
 % composite instances. Corresponds to DICOM Tag 0008, 1090 "Manufacturers Model Name".
-anat_json.ManufacturersModelName = ' ';
+anat_json.ManufacturersModelName = hdr{1}.ManufacturerModelName;
 
 % RECOMMENDED Nominal field strength of MR magnet in Tesla. Corresponds to
 % DICOM Tag 0018,0087 "Magnetic Field Strength".
-anat_json.MagneticFieldStrength = ' ';
+anat_json.MagneticFieldStrength = hdr{1}.MagneticFieldStrength;
 
 % RECOMMENDED The serial number of the equipment that produced the composite
 % instances. Corresponds to DICOM Tag 0018, 1000 "DeviceSerialNumber".
-anat_json.DeviceSerialNumber = ' ';
+anat_json.DeviceSerialNumber = hdr{1}.DeviceSerialNumber;
 
 % RECOMMENDED Institution defined name of the machine that produced the composite
 % instances. Corresponds to DICOM Tag 0008, 1010 "Station Name"
-anat_json.StationName = ' ';
+anat_json.StationName = hdr{1}.StationName;
 
 % RECOMMENDED Manufacturer's designation of software version of the equipment
 % that produced the composite instances. Corresponds to
 % DICOM Tag 0018, 1020 "Software Versions".
-anat_json.SoftwareVersions = ' ';
+anat_json.SoftwareVersions = hdr{1}.SoftwareVersions;
 
 % RECOMMENDED (Deprecated) Manufacturer's designation of the software of the
 % device that created this Hardcopy Image (the printer). Corresponds to
@@ -88,15 +88,15 @@ anat_json.ScanningSequence = ' ';
 
 % RECOMMENDED Variant of the ScanningSequence. Corresponds to
 % DICOM Tag 0018, 0021 "Sequence Variant".
-anat_json.SequenceVariant = ' ';
+anat_json.SequenceVariant = hdr{1}.SequenceVariant;
 
 % RECOMMENDED Parameters of ScanningSequence. Corresponds to
 % DICOM Tag 0018, 0022 "Scan Options".
-anat_json.ScanOptions = ' ';
+anat_json.ScanOptions = hdr{1}.ScanOptions;
 
 % RECOMMENDED Manufacturer's designation of the sequence name. Corresponds
 % to DICOM Tag 0018, 0024 "Sequence Name".
-anat_json.SequenceName = ' ';
+anat_json.SequenceName = hdr{1}.SequenceName;
 
 % RECOMMENDED Information beyond pulse sequence type that identifies the
 % specific pulse sequence used
@@ -134,19 +134,19 @@ anat_json.PartialFourierDirection = ' ';
 anat_json.WaterFatShift = ' ';
 
 % RECOMMENDED Number of lines in k-space acquired per excitation per image.
-anat_json.EchoTrainLength = ' ';
+anat_json.EchoTrainLength = hdr{1}.EchoTrainLength;
 
 %% Timing Parameters metadata fields
 
 % REQUIRED if corresponding fieldmap data is present or the data comes from
 % a multi echo sequence. The echo time (TE) for the acquisition, specified in seconds.
 % Corresponds to DICOM Tag 0018, 0081 "Echo Time"
-anat_json.EchoTime = ' ';
+anat_json.EchoTime = hdr{1}.EchoTime;
 
 % RECOMMENDED The inversion time (TI) for the acquisition, specified in seconds.
 % Inversion time is the time after the middle of inverting RF pulse to middle
 % of excitation pulse to detect the amount of longitudinal magnetization
-anat_json.InversionTime = ' ';
+anat_json.InversionTime = hdr{1}.InversionTime;
 
 % RECOMMENDED  Possible values: "i", "j", "k", "i-", "j-", "k-" (the axis of the NIfTI data
 % along which slices were acquired, and the direction in which SliceTiming
@@ -165,7 +165,7 @@ anat_json.DwellTime = ' ';
 
 % RECOMMENDED Flip angle for the acquisition, specified in degrees.
 % Corresponds to: DICOM Tag 0018, 1314 "Flip Angle".
-anat_json.FlipAngle = ' ';
+anat_json.FlipAngle = hdr{1}.FlipAngle;
 
 %% Slice Acceleration metadata field
 
@@ -183,17 +183,17 @@ anat_json.AnatomicalLandmarkCoordinates = ' ';
 % RECOMMENDED The name of the institution in charge of the equipment that
 % produced the composite instances. Corresponds to
 % DICOM Tag 0008, 0080 "InstitutionName".
-anat_json.InstitutionName = ' ';
+anat_json.InstitutionName = hdr{1}.InstitutionName;
 
 % RECOMMENDED The address of the institution in charge of the equipment that
 % produced the composite instances. Corresponds to
 % DICOM Tag 0008, 0081 "InstitutionAddress"
-anat_json.InstitutionAddress = ' ';
+anat_json.InstitutionAddress = hdr{1}.InstitutionAddress;
 
 % RECOMMENDED The department in the  institution in charge of the equipment
 % that produced the composite instances. Corresponds to
 % DICOM Tag 0008, 1040 "Institutional Department Name".
-anat_json.InstitutionalDepartmentName = ' ';
+anat_json.InstitutionalDepartmentName = hdr{1}.InstitutionalDepartmentName;
 
 % OPTIONAL JSON field specific to anatomical scans
 % Active ingredient of agent.  Values MUST be one of: IODINE, GADOLINIUM,
@@ -216,4 +216,5 @@ catch
             'Writing the JSON file seems to have failed.', ...
             'Make sure that the following library is in the matlab/octave path:', ...
             'https://github.com/gllmflndn/JSONio');
+end
 end
