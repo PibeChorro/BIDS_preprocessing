@@ -54,7 +54,7 @@ raw_dir         = fullfile(root_dir, 'raw_data');
 %..............................WHAT TO DO.................................%
 do.overwrite            = 0;
 do.func_conversion      = 1;
-do.struct_conversion    = 1;
+do.struct_conversion    = 0;
 
 % TODO: create a log file to save warning and error messages
 
@@ -70,17 +70,20 @@ subNames = {folders(:).name};
 spm_mkdir(raw_dir, subNames, dic_struct_dir);
 spm_mkdir(raw_dir, subNames, 'func'); 
 
+% write the dataset description json file
+BIDS_dataset_json(raw_dir);
 %% start to perform the conversion
 for ss = 1:length(subNames) % For all subjects do each ...
     
     nifti_dir = fullfile(raw_dir,subNames{ss});
     func_nifti_dir = fullfile(nifti_dir,'func');
+
+    % where to find functional data
+    dicom_dir       = fullfile(source_dir,subNames{ss});
+    func_dicom_dir  = fullfile(dicom_dir,'func');
     
     %% Conversion from functional DICOM to NIfTI
     if do.func_conversion
-        % where to find functional data
-        dicom_dir       = fullfile(source_dir,subNames{ss});
-        func_dicom_dir  = fullfile(dicom_dir,'func');
         folderContent   = dir(fullfile(func_dicom_dir,'run*'));
         %% create a BIDS conform file structure for every subject
         % source data: DICOMS
@@ -134,7 +137,7 @@ for ss = 1:length(subNames) % For all subjects do each ...
                 % give the function the directory where to store the
                 % json file and the last dicom directory to read out
                 % necessary information
-                %                     BIDS_bold_json (curr_dir,dirfiles(1))
+                BIDS_bold_json (func_nifti_dir,dirfiles(1,:),[subNames{ss} '_bold.json']);
             end
         end
     end
@@ -163,9 +166,13 @@ for ss = 1:length(subNames) % For all subjects do each ...
         matlabbatch{1}.spm.util.import.dicom.outdir             = cellstr(dest_dir);
         matlabbatch{1}.spm.util.import.dicom.protfilter         = '.*';
         matlabbatch{1}.spm.util.import.dicom.convopts.format    = 'nii';
-        matlabbatch{1}.spm.util.import.dicom.convopts.meta      = 1;
+        matlabbatch{1}.spm.util.import.dicom.convopts.meta      = 0;
         matlabbatch{1}.spm.util.import.dicom.convopts.icedims   = 0;
         
         spm_jobman('run', matlabbatch);
+        
+        % After creating the anatomical image, creat its corresponding json
+        % file
+        BIDS_anatT1w_json(dest_dir, dirfiles(1,:),[subNames{ss} '_T1w']);
     end
 end

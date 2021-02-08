@@ -9,12 +9,10 @@
 
 %%
 
-function bold_json = BIDS_bold_json(curDir, dicomDir)
+function bold_json = BIDS_bold_json(curDir, dicomDir,bold_json_name)
 
+bold_json_name = fullfile(curDir,bold_json_name);
 hdr = spm_dicom_headers(dicomDir);
-
-% you can also have acq- and proc-, but these are optional
-bold_json_name = fullfile([curDir '_bold.json']);
 
 %% Required fields
 % REQUIRED Name of the task (for resting state use the ?rest? prefix). No two tasks
@@ -100,9 +98,8 @@ bold_json.EchoTime = hdr{1}.EchoTime;
 bold_json.Manufacturer = hdr{1}.Manufacturer;
 
 % RECOMMENDED Manufacturer`s model name of the equipment that produced the
-% composite instances. Corresponds to DICOM Tag 0008, 1090 "Manufacturers
-% Model Name"
-bold_json.ManufacturersModelName = '';
+% composite instances. Corresponds to DICOM Tag 0008, 1090 "Manufacturers Model Name".
+bold_json.ManufacturersModelName = hdr{1}.ManufacturerModelName;
 
 % RECOMMENDED Nominal field strength of MR magnet in Tesla. Corresponds to
 % DICOM Tag 0018,0087 "Magnetic Field Strength".
@@ -110,73 +107,76 @@ bold_json.MagneticFieldStrength = hdr{1}.MagneticFieldStrength;
 
 % RECOMMENDED The serial number of the equipment that produced the composite
 % instances. Corresponds to DICOM Tag 0018, 1000 "DeviceSerialNumber".
-bold_json.DeviceSerialNumber = '';
+bold_json.DeviceSerialNumber = hdr{1}.DeviceSerialNumber;
 
 % RECOMMENDED Institution defined name of the machine that produced the composite
-% instances. Corresponds to DICOM Tag 0008, 1010 Station Name
+% instances. Corresponds to DICOM Tag 0008, 1010 "Station Name"
 bold_json.StationName = hdr{1}.StationName;
 
 % RECOMMENDED Manufacturer's designation of software version of the equipment
 % that produced the composite instances. Corresponds to
 % DICOM Tag 0018, 1020 "Software Versions".
-bold_json.SoftwareVersions = ' ';
+bold_json.SoftwareVersions = hdr{1}.SoftwareVersions;
 
 % RECOMMENDED (Deprecated) Manufacturer's designation of the software of the
 % device that created this Hardcopy Image (the printer). Corresponds to
 % DICOM Tag 0018, 101 "Hardcopy Device Software Version".
-bold_json.HardcopyDeviceSoftwareVersion = '';
+bold_json.HardcopyDeviceSoftwareVersion = ' ';
 
 % RECOMMENDED Information describing the receiver coil
 bold_json.ReceiveCoilName = ' ';
 
+% RECOMMENDED Information describing the active/selected elements of the receiver coil.
+bold_json.ReceiveCoilActiveElements = ' ';
+
 % RECOMMENDED the specifications of the actual gradient coil from the scanner model
-bold_json.GradientSetType = '';
+bold_json.GradientSetType = ' ';
 
 % RECOMMENDED This is a relevant field if a non-standard transmit coil is used.
 % Corresponds to DICOM Tag 0018, 9049 "MR Transmit Coil Sequence".
-bold_json.MRTransmitCoilSequence = '';
+bold_json.MRTransmitCoilSequence = ' ';
 
 % RECOMMENDED A method for reducing the number of independent channels by
 % combining in analog the signals from multiple coil elements. There are
 % typically different default modes when using un-accelerated or accelerated
 % (e.g. GRAPPA, SENSE) imaging
-bold_json.MatrixCoilMode = '';
+bold_json.MatrixCoilMode = ' ';
 
 % RECOMMENDED Almost all fMRI studies using phased-array coils use
 % root-sum-of-squares (rSOS) combination, but other methods exist.
 % The image reconstruction is changed by the coil combination method
 % (as for the matrix coil mode above), so anything non-standard should be reported.
-bold_json.CoilCombinationMethod = '';
+bold_json.CoilCombinationMethod = ' ';
 
 %% Sequence Specifics metadata fields
 
 % RECOMMENDED A general description of the pulse sequence used for the scan
 % (i.e. MPRAGE, Gradient Echo EPI, Spin Echo EPI, Multiband gradient echo EPI).
-bold_json.PulseSequenceType = '';
+bold_json.PulseSequenceType = ' ';
 
 % RECOMMENDED Description of the type of data acquired. Corresponds to
 % DICOM Tag 0018, 0020 "Sequence Sequence".
-bold_json.ScanningSequence = '';
+bold_json.ScanningSequence = ' ';
 
 % RECOMMENDED Variant of the ScanningSequence. Corresponds to
 % DICOM Tag 0018, 0021 "Sequence Variant".
-bold_json.SequenceVariant = '';
+bold_json.SequenceVariant = hdr{1}.SequenceVariant;
 
 % RECOMMENDED Parameters of ScanningSequence. Corresponds to
 % DICOM Tag 0018, 0022 "Scan Options".
-bold_json.ScanOptions = '';
+bold_json.ScanOptions = hdr{1}.ScanOptions;
 
 % RECOMMENDED Manufacturer's designation of the sequence name. Corresponds
 % to DICOM Tag 0018, 0024 "Sequence Name".
-bold_json.SequenceName = '';
+bold_json.SequenceName = hdr{1}.SequenceName;
 
 % RECOMMENDED Information beyond pulse sequence type that identifies the
 % specific pulse sequence used
-bold_json.PulseSequenceDetails = '';
+bold_json.PulseSequenceDetails = ' ';
 
 % RECOMMENDED Boolean stating if the image saved  has been corrected for
 % gradient nonlinearities by the scanner sequence.
-bold_json.NonlinearGradientCorrection = '';
+bold_json.NonlinearGradientCorrection = ' ';
 
 %% In-Plane Spatial Encoding metadata fields
 
@@ -206,7 +206,7 @@ bold_json.PartialFourierDirection = '';
 bold_json.WaterFatShift = '';
 
 % RECOMMENDED Number of lines in k-space acquired per excitation per image.
-bold_json.EchoTrainLength = '';
+bold_json.EchoTrainLength = hdr{1}.EchoTrainLength;
 
 %% Timing Parameters metadata fields
 
@@ -262,7 +262,7 @@ bold_json.NumberOfVolumesDiscardedByUser = '';
 
 % RECOMMENDED Flip angle for the acquisition, specified in degrees.
 % Corresponds to: DICOM Tag 0018, 1314 "Flip Angle".
-bold_json.FlipAngle = '';
+bold_json.FlipAngle = hdr{1}.FlipAngle;
 
 %% Slice Acceleration metadata field
 
@@ -290,17 +290,17 @@ bold_json.CogPOID = '';
 % RECOMMENDED The name of the institution in charge of the equipment that
 % produced the composite instances. Corresponds to
 % DICOM Tag 0008, 0080 "InstitutionName".
-bold_json.InstitutionName = '';
+bold_json.InstitutionName = hdr{1}.InstitutionName;
 
 % RECOMMENDED The address of the institution in charge of the equipment that
 % produced the composite instances. Corresponds to
 % DICOM Tag 0008, 0081 "InstitutionAddress"
-bold_json.InstitutionAddress = '';
+bold_json.InstitutionAddress = hdr{1}.InstitutionAddress;
 
 % RECOMMENDED The department in the  institution in charge of the equipment
 % that produced the composite instances. Corresponds to
 % DICOM Tag 0008, 1040 "Institutional Department Name".
-bold_json.InstitutionalDepartmentName = '';
+bold_json.InstitutionalDepartmentName = hdr{1}.InstitutionalDepartmentName;
 
 %% Write
 % this just makes the json file look prettier when opened in a text editor
