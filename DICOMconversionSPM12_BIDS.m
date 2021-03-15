@@ -15,7 +15,7 @@ function DICOMconversionSPM12_BIDS()
 % DEFINE path and get relevant filenames.
 %-------------------------------------------------------------------------%
 fprintf(['Please select your project folder.'...
-    '(ideally it should contain a folder named "source_data")'])
+    '(ideally it should contain a folder named "sourcedata")\n\n'])
 root_dir    = uigetdir(homedir, 'Select Project Folder');
 % stop the script when no folder was selected
 if root_dir == 0
@@ -41,7 +41,7 @@ extensions = {'**.IMA','**.ima'}; % extension you care about
 % but spm_select('FPList',...) is
 %-------------------------------------------------------------------------%
 
-nDummies = input(['Please specify the number of dummy images.\n'...
+nDummies = input(['\nPlease specify the number of dummy images.\n'...
     '!!!IMPORTANT!!!\n'...
     'Be super duper sure to give the right number of images, because those will be skipped in the conversion process!\n\n']);
 
@@ -55,7 +55,8 @@ end
 
 % specify where to find the anatomical scan (!!! soon it will change from
 % anat to anat/T1w !!!)
-dic_struct_dir  = 'anat/';
+anat_dir  = 'anat/';
+anat_modality = 'T1w';
 
 raw_dir         = fullfile(root_dir, 'rawdata');
 
@@ -73,6 +74,7 @@ do.struct_conversion    = 1;
 % create a BIDS conform directory structure for the NIFTIS
 % first we need get the number of subjects. Then we create a cell array
 % containing the subject names sub-<index>
+taskName = 'magic';
 formatSpec = '%02i';
 folders = dir(fullfile(source_dir,[prefix, '*']));
 subNames = {folders(:).name}; 
@@ -84,7 +86,7 @@ end
 
 % create the rawdata folder
 % raw data: NIFTIS unprocessed
-spm_mkdir(raw_dir, rawSubNames, dic_struct_dir);
+spm_mkdir(raw_dir, rawSubNames, anat_dir);
 spm_mkdir(raw_dir, rawSubNames, 'func'); 
 % here already create the dataset_description.json file 
 createBIDS_dataset_description_json(raw_dir);
@@ -104,7 +106,7 @@ for ss = 1:length(subNames) % For all subjects do each ...
         folderContent   = dir(fullfile(func_dicom_dir,'run*'));
         rawdataContent  = {};
         for i = 1:length(folderContent)
-            rawdataContent{end+1}=[rawSubNames{ss} '_task-magic_run-' num2str(i,formatSpec) '_bold'];
+            rawdataContent{end+1}=[rawSubNames{ss} '_task-' taskName '_run-' num2str(i,formatSpec) '_bold'];
         end
         %% create a BIDS conform file structure for every subject
         % source data: DICOMS
@@ -160,15 +162,15 @@ for ss = 1:length(subNames) % For all subjects do each ...
             % give the function the directory where to store the
             % json file and the last dicom directory to read out
             % necessary information
-            BIDS_bold_json (func_nifti_dir,dirfiles(1,:),[rawSubNames{ss} '_task-magic_bold.json'])
+            BIDS_bold_json (func_nifti_dir,dirfiles(1,:),[rawSubNames{ss} '_task-' taskName '_bold.json'])
         end
     end
     
     %% Conversion from DICOM to NIfTI of STRUCTURAL image
     % (just to have it in another folder and change name)
     if do.struct_conversion
-        curr_dir = fullfile(dicom_dir,'anat');
-        dest_dir = fullfile(nifti_dir, dic_struct_dir);
+        curr_dir = fullfile(dicom_dir,anat_dir, anat_modality);
+        dest_dir = fullfile(nifti_dir, anat_dir);
         
         % select files (either "ima" or "IMA")
         dirfiles = [];
@@ -192,8 +194,18 @@ for ss = 1:length(subNames) % For all subjects do each ...
         matlabbatch{1}.spm.util.import.dicom.convopts.icedims   = 0;
         
         spm_jobman('run', matlabbatch);
+        
+        % To this point there is no option to change the NAME of the
+        % produced anatomical NIfTI - change the name manually
+        anatImg = spm_select('FPList',dest_dir,'.nii');
+        [stat, mes] = movefile(anatImg, fullfile(dest_dir,[rawSubNames{ss} '_T1w.nii']));
+        
+        if ~stat
+            warning(mes)
+        end
+        
         % after creating the anatomical NIfTI we creat its corresponding
         % .json file
-        BIDS_anatT1w_json(dest_dir, dirfiles(1,:),[rawSubNames{ss} '_T1w']);
+        BIDS_anatT1w_json(dest_dir, dirfiles(1,:),[rawSubNames{ss} '_' anat_modality]);
     end
 end
