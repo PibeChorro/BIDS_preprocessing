@@ -141,7 +141,7 @@ anat_json.EchoTrainLength = hdr{1}.EchoTrainLength;
 % REQUIRED if corresponding fieldmap data is present or the data comes from
 % a multi echo sequence. The echo time (TE) for the acquisition, specified in seconds.
 % Corresponds to DICOM Tag 0018, 0081 "Echo Time"
-anat_json.EchoTime = hdr{1}.EchoTime;
+anat_json.EchoTime = hdr{1}.EchoTime/1000;
 
 % RECOMMENDED The inversion time (TI) for the acquisition, specified in seconds.
 % Inversion time is the time after the middle of inverting RF pulse to middle

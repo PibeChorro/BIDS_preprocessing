@@ -26,7 +26,7 @@ bold_json.TaskName = '';
 % (when no data has been acquired) in case of sparse acquisition schemes.
 % This value needs to be consistent with the pixdim[4] field
 % (after accounting for units stored in xyzt_units field) in the NIfTI header
-bold_json.RepetitionTime = hdr{1}.RepetitionTime;
+bold_json.RepetitionTime = hdr{1}.RepetitionTime/1000;
 
 % REQUIRED This field is mutually exclusive with RepetitionTime and DelayTime.
 % If defined, this requires acquisition time (TA) be defined via either SliceTiming
@@ -37,7 +37,7 @@ bold_json.RepetitionTime = hdr{1}.RepetitionTime;
 % onset of each volume in the BOLD series. The list must have the same length
 % as the BOLD series, and the values must be non-negative and monotonically
 % increasing.
-bold_json.VolumeTiming = [];
+% bold_json.VolumeTiming = [];
 
 % RECOMMENDED This field is mutually exclusive with VolumeTiming.
 %
@@ -61,7 +61,7 @@ bold_json.DelayTime = [];
 % described using a list of times (in JSON format) referring to the acquisition
 % time for each slice. The list goes through slices along the slice axis in the
 % slice encoding dimension.
-bold_json.SliceTiming = hdr{1}.Private_0019_1029;
+% bold_json.SliceTiming = hdr{1}.Private_0019_1029;
 
 % RECOMMENDED This field is REQUIRED for sequences that are described with
 % the VolumeTiming field and that not have the SliceTiming field set to allowed
@@ -70,25 +70,25 @@ bold_json.SliceTiming = hdr{1}.Private_0019_1029;
 %
 % Duration (in seconds) of volume acquisition. Corresponds to
 % DICOM Tag 0018,9073 "Acquisition Duration".
-bold_json.AcquisitionDuration = [];
+% bold_json.AcquisitionDuration = [];
 
 %% Required fields if using a fieldmap
 % REQUIRED if corresponding fieldmap data is present or when using multiple
 % runs with different phase encoding directions PhaseEncodingDirection is
 % defined as the direction along which phase is was modulated which may
 % result in visible distortions.
-bold_json.PhaseEncodingDirection = '';
+% bold_json.PhaseEncodingDirection = '';
 
 % REQUIRED if corresponding fieldmap data is present.
 % The effective sampling interval, specified in seconds, between lines in
 % the phase-encoding direction, defined based on the size of the reconstructed
 % image in the phase direction.
-bold_json.EffectiveEchoSpacing = '';
+% bold_json.EffectiveEchoSpacing = '';
 
 % REQUIRED if corresponding fieldmap data is present or the data comes from
 % a multi echo sequence. The echo time (TE) for the acquisition, specified in seconds.
 % Corresponds to DICOM Tag 0018, 0081 "Echo Time"
-bold_json.EchoTime = hdr{1}.EchoTime;
+bold_json.EchoTime = hdr{1}.EchoTime/1000;
 
 %% Recommended fields:
 
@@ -221,7 +221,7 @@ bold_json.InversionTime = '';
 % first, second and third axis of the data in the NIfTI file. When present
 % ,the axis defined by SliceEncodingDirection  needs to be consistent with
 % the slice_dim field in the NIfTI header.
-bold_json.SliceEncodingDirection = '';
+% bold_json.SliceEncodingDirection = '';
 
 % RECOMMENDED Actual dwell time (in seconds) of the receiver per point in the
 % readout direction, including any oversampling.  For Siemens, this corresponds
@@ -280,10 +280,10 @@ bold_json.Instructions = '';
 bold_json.TaskDescription = '';
 
 % RECOMMENDED URL of the corresponding Cognitive Atlas Task term.
-bold_json.CogAtlasID = '';
+% bold_json.CogAtlasID = '';
 
 % RECOMMENDED URL of the corresponding CogPO term.
-bold_json.CogPOID = '';
+% bold_json.CogPOID = '';
 
 %% Institution information metadata fields
 

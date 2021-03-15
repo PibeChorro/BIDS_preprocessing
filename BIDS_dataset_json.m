@@ -35,7 +35,7 @@ dd_json.License = ''; % what license is this dataset distributed under? The
 dd_json.Authors = {'Vincent Plikat', 'Dr. Pablo Grassi', 'Prof. Dr. Andreas Bartels'}; % List of individuals who contributed to the
 % creation/curation of the dataset
 
-dd_json.Acknowledgements = {'Dr. Michael Banntert', 'Jasper Bischoffberger'}; % who should be acknowledge in helping to collect the data
+dd_json.Acknowledgements = "Dr. Michael Bannert and Jasper Bischoffberger"; % who should be acknowledge in helping to collect the data
 
 dd_json.HowToAcknowledge = ''; % Instructions how researchers using this
 % dataset should acknowledge the original authors. This field can also be used
@@ -45,11 +45,11 @@ dd_json.HowToAcknowledge = ''; % Instructions how researchers using this
 dd_json.Funding = {'', '', ''}; % sources of funding (grant numbers)
 
 % List of ethics committee approvals of the research protocols and/or protocol identifiers.
-dd_json.EthicsApprovals = ''; 
+dd_json.EthicsApprovals = []; 
 
 % a list of references to
 % publication that contain information on the dataset, or links.
-dd_json.ReferencesAndLinks = {'', '', ''}; 
+% dd_json.ReferencesAndLinks = {'', '', ''}; 
 
 dd_json.DatasetDOI = ''; % the Document Object Identifier of the dataset
 % (not the corresponding paper).
