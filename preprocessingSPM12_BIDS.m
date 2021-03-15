@@ -7,25 +7,31 @@ function preprocessingSPM12_BIDS()
 %% Define important details of your file structure and location
 % Set root directory
 fprintf(['Please select your project folder.'...
-    '(ideally it should contain a folder named "raw_data")'])
+    '(ideally it should contain a folder named "raw_data")\n\n'])
 root_dir    = uigetdir(homedir, 'Select Project Folder');
 if root_dir == 0
     error('No folder was selected --> I terminate the script')
 end
 
 % Set source_data directory. This is only needed for slice time correction
-source_dir  = fullfile(root_dir,'source_data');
+source_dir  = fullfile(root_dir,'sourcedata');
 if ~isfolder(source_dir)
     fprintf(['It appears you do not have a "source_data" folder.\n'...
-        'Please select the folder that contains your unprocessed niftis.'])
+        'Please select the folder that contains your unprocessed niftis.\n\n'])
     raw_dir  = uigetdir(root_dir, 'Select DICOM folder');
     if raw_dir == 0
         error('No folder was selected --> I terminate the script')
     end
 end
 
+DICOMprefix = input (['Please specify the prefix of your participant data in your SOURCEDATA directory.\n' ...
+    '(like p for participant or s for subject. It has to be unique so that only subject folders are selected):\n\n'],'s');
+
+DICOMfolders = dir(fullfile(source_dir,[DICOMprefix, '*']));
+DICOMsubNames = {DICOMfolders(:).name}; 
+
 % Set raw_data directory.
-raw_dir     = fullfile(root_dir, 'raw_data');
+raw_dir     = fullfile(root_dir, 'rawdata');
 if ~isfolder(raw_dir)
     fprintf(['It appears you do not have a "raw_data" folder.\n'...
         'Please select the folder that contains your unprocessed niftis.'])
@@ -35,14 +41,43 @@ if ~isfolder(raw_dir)
     end
 end
 
-derivative_dir = fullfile (root_dir, 'derivative_data');
+derivative_dir = fullfile (root_dir, 'derivatives');
 if ~isfolder(derivative_dir)
     mkdir (derivative_dir);
 end
 
-prefix = input (['Please specify the prefix of your participant data.\n' ...
-    '(like p for participant or s for subject. It has to be unique so that only subject folders are selected):\n'],'s');
-dic_struct_dir = 'anat';
+sub_prefix      = 'sub-';   % subject prefix - this one is REQUIRED
+session_prefix  = 'ses';    % session prefix - only needed if more than one session per subject
+session_labels  = '';       % labels of sessions - must be alphanumeric
+task_prefix     = 'task-';  % this one is REQUIRED (it does not make too much sense, when having only one task, but it gives more information in the name
+task_labels     = {'magic'};  % labels of tasks
+anat_dir        = 'anat';   % where the structural image is stored
+anat_modality   = 'T1w';
+
+%% Set name of data
+% A first draft of how one could automatise the names of data
+% sessionNames = {};
+% if isempty(session_labels)
+%     sessionNames = '';
+% else
+%     for ses = 1:length(session_labels)
+%         sessionNames{end+1} = [session_prefix session_labels{ses}];
+%     end
+% end
+% 
+% taskNames = {};
+% for task = 1:length(task_labels)
+%     taskNames{end+1} = [task_prefix task_labels{task}];
+% end
+% 
+% dataNames = {};
+% for ses = 1:length(sessionNames)
+%     for task = 1:length(taskNames)
+%         dataNames{end+1} = [sessionNames{sees} '_' taskNames{task}];
+%     end
+% end
+
+taskName = [task_prefix task_labels{1}];
 
 %-------------------------------------------------------------------------%
 % DEFINE file extensions of DICOMs you care about
@@ -54,12 +89,12 @@ extensions = {'**.IMA','**.ima'}; % extension you care about
 
 %% Decide what to do
 %..............................WHAT TO DO.................................%
-do.overwrite        = 1;
-do.realignment      = 0; % 1 = realigning and unwarp;
-do.slice_time_corr  = 0; % slice time correction (using slice TIMES); 
+do.overwrite        = 0;
+do.realignment      = 1; % 1 = realigning and unwarp;
+do.slice_time_corr  = 1; % slice time correction (using slice TIMES); 
 do.coregistration   = 'auto'; % 'manual' or 'auto';
 do.segmentation     = 1;
-do.normalisation    = 1; %JB 1 (Do (segmentation,) normalisation & smoothnig together)
+do.normalisation    = 1; 
 do.smoothing        = 1; %Smoothing Flag, set to 1 if you want to smooth. 
 do.smoothNorm       = 'mni'; % Smooth normalize data = 'mni', native data = 'native' or 'both'
 do.smoothingSize    = 6;
@@ -74,7 +109,7 @@ spm fmri;
 % create a BIDS conform directory structure for the NIFTIS
 % first we need to create a cell containing the subject names
 pipelineName = 'spm12-preproc';
-folders = dir(fullfile(raw_dir,[prefix, '*']));
+folders = dir(fullfile(raw_dir,[sub_prefix, '*']));
 subNames = {folders(:).name}; 
 
 %% start to perform the preprocessing
@@ -84,9 +119,9 @@ for ss = 1:length(subNames) % For all subjects do each ...
     raw_func_nifti_dir = fullfile(raw_nifti_dir,'func');
     
     % check if structural volume exists if needed
-    dir_raw_structImg = dir(fullfile(raw_nifti_dir, dic_struct_dir,'*.nii'));
-    dir_raw_structImg = fullfile(raw_nifti_dir, dic_struct_dir,dir_raw_structImg.name);
-    folderContent = dir(fullfile(raw_func_nifti_dir,'run*')); 
+    dir_raw_structImg   = dir(fullfile(raw_nifti_dir, anat_dir, anat_modality, '*.nii'));
+    dir_raw_structImg   = fullfile(raw_nifti_dir, anat_dir, anat_modality, dir_raw_structImg.name);
+    folderContent       = dir(fullfile(raw_func_nifti_dir,[subNames{ss} '_' taskName '_' 'run*'])); 
     nruns = length(folderContent);
     
     %% create a BIDS conform file structure for every subject
@@ -95,7 +130,7 @@ for ss = 1:length(subNames) % For all subjects do each ...
     % 
     % project/
     %   derivative_data/
-    %       <pipeline-name>         // spm12 in this case
+    %       <pipeline-name>         // spm12-preproc in this case
     %           <processing-step1>
     %           <processing-step2>
     %               sub<nr>/
@@ -119,7 +154,7 @@ for ss = 1:length(subNames) % For all subjects do each ...
     slice_time_corrected_dir    = fullfile (derivative_dir, pipelineName, 'slice_time_corrected/');
     coregistered_dir            = fullfile (derivative_dir, pipelineName, 'coregistered/');
     normalized_dir              = fullfile (derivative_dir, pipelineName, 'normalized/');
-    smoothed_dir                = fullfile (derivative_dir, pipelineName, [num2str(do.smoothingSize) 'smoothed/']);
+    smoothed_dir                = fullfile (derivative_dir, pipelineName, [num2str(do.smoothingSize) 'mm-smoothed/']);
     segmented_dir               = fullfile (derivative_dir, pipelineName, 'segmented/');
     % establish BIDS conform data structure for each step
     spm_mkdir (realigned_dir, subNames{ss}, 'func', {folderContent(:).name});
@@ -135,7 +170,7 @@ for ss = 1:length(subNames) % For all subjects do each ...
     if do.realignment
         
         % getting the raw functional NIfTIs out of the 'raw_data' directory
-        folderContent = dir(fullfile(raw_func_nifti_dir,'run*')); 
+        folderContent = dir(fullfile(raw_func_nifti_dir,[subNames{ss} '_' taskName '_' 'run*'])); 
         nruns = length(folderContent);
         fprintf('STARTING REALIGNMENT AND UNWARPING \n\n')
         
@@ -264,11 +299,12 @@ for ss = 1:length(subNames) % For all subjects do each ...
     % slice time correction for every run individually because slice timing
     % differs slightly
     if do.slice_time_corr
-        folderContent = dir(fullfile(realigned_dir, subNames{ss}, 'func', 'run*')); 
+        folderContent       = dir(fullfile(realigned_dir, subNames{ss}, 'func', [subNames{ss} '_' taskName '_' 'run*'])); 
+        DICOMfolderContent  = dir(fullfile(source_dir, DICOMsubNames{ss}, 'func', 'run*'));
         fprintf('SLICE TIME CORRECTION\n\n')
         for run=1:nruns % for number of runs
             % load a dicom header that contains information needed for analysis
-            dicom_dir           = fullfile(source_dir,subNames{ss},'func',folderContent(run).name);
+            dicom_dir           = fullfile(source_dir,DICOMsubNames{ss},'func',DICOMfolderContent(run).name);
             % select all dicom files from the current run
             dicom_files = [];
             for ext = 1:length(extensions)
@@ -349,7 +385,7 @@ for ss = 1:length(subNames) % For all subjects do each ...
         % copy the slice time corrected images in the coregistration folder
         % then perform the coregistration on the copied images
         % TODO: add a prefix ('c') to files in the coregistation folder
-        folderContent = dir(fullfile(slice_time_corrected_dir, subNames{ss}, 'func', 'run*')); 
+        folderContent = dir(fullfile(slice_time_corrected_dir, subNames{ss}, 'func', [subNames{ss} '_' taskName '_' 'run*'])); 
         for run = 1:length(folderContent)
             [success,message] = copyfile(fullfile(slice_time_corrected_dir, subNames{ss}, 'func', folderContent(run).name),...
                 fullfile(coregistered_dir, subNames{ss}, 'func', folderContent(run).name));
@@ -455,22 +491,22 @@ for ss = 1:length(subNames) % For all subjects do each ...
         spm_jobman('run', jobs);
         
         % move the segmentation images into the derivative folder
-        [success,message] = movefile(fullfile(raw_nifti_dir, dic_struct_dir,'c*.nii'),...
+        [success,message] = movefile(fullfile(raw_nifti_dir, anat_dir, anat_modality,'c*.nii'),...
             fullfile(segmented_dir, subNames{ss}, 'anat'));
         if ~success
                 warning(message)
         end
-        [success,message] = movefile(fullfile(raw_nifti_dir, dic_struct_dir,'i*.nii'),...
+        [success,message] = movefile(fullfile(raw_nifti_dir, anat_dir, anat_modality,'i*.nii'),...
             fullfile(segmented_dir, subNames{ss}, 'anat'));
         if ~success
                 warning(message)
         end
-        [success,message] = movefile(fullfile(raw_nifti_dir, dic_struct_dir,'y*.nii'),...
+        [success,message] = movefile(fullfile(raw_nifti_dir, anat_dir, anat_modality,'y*.nii'),...
             fullfile(segmented_dir, subNames{ss}, 'anat'));
         if ~success
                 warning(message)
         end
-        [success,message] = movefile(fullfile(raw_nifti_dir, dic_struct_dir,'*.mat'),...
+        [success,message] = movefile(fullfile(raw_nifti_dir, anat_dir, anat_modality,'*.mat'),...
             fullfile(segmented_dir, subNames{ss}, 'anat'));
         if ~success
                 warning(message)
@@ -485,7 +521,7 @@ for ss = 1:length(subNames) % For all subjects do each ...
         fprintf('NORMALISATION USING SEGMENTATION\n\n')
         
         struct_defForward = dir(fullfile (segmented_dir, subNames{ss}, 'anat','y_*.nii'));
-        folderContent = dir(fullfile(coregistered_dir, subNames{ss}, 'func', 'run*'));
+        folderContent = dir(fullfile(coregistered_dir, subNames{ss}, 'func', [subNames{ss} '_' taskName '_' 'run*']));
         
         meanEpi = dir(fullfile(coregistered_dir, subNames{ss}, 'func', ['meanuf' '*.nii']));
         meanEpi = fullfile(coregistered_dir, subNames{ss}, 'func', meanEpi.name);
@@ -528,7 +564,7 @@ for ss = 1:length(subNames) % For all subjects do each ...
         end
         
         % move the created normalized anatomical image in a seperate folder
-        [success,message] = movefile(fullfile(raw_nifti_dir, dic_struct_dir,'w*.nii'),...
+        [success,message] = movefile(fullfile(raw_nifti_dir, anat_dir, anat_modality,'w*.nii'),...
             fullfile(normalized_dir, subNames{ss}, 'anat'));
         if ~success
                 warning(message)
@@ -544,7 +580,7 @@ for ss = 1:length(subNames) % For all subjects do each ...
     %% Smoothing
     if do.smoothing
         fprintf('SMOOTHING\n\n')
-        folderContent = dir(fullfile(normalized_dir, subNames{ss}, 'func', 'run*'));
+        folderContent = dir(fullfile(normalized_dir, subNames{ss}, 'func', [subNames{ss} '_' taskName '_' 'run*']));
         
         alltargets = {};
                 
