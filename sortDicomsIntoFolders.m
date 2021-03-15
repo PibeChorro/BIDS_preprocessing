@@ -27,8 +27,10 @@ workingDir = pwd;
 %-------------------------------------------------------------------------%
 % DEFINE path and get relevant filenames.
 %-------------------------------------------------------------------------%
-source_dir = uigetdir(homedir, ['Please specify the directory that contains your subjectfolders'...
-    '(ideally it should be named "source_data")']);
+fprintf(['Please specify the directory that contains your subjectfolders'...
+    '(ideally it should be named "source_data")\n\n']);
+
+source_dir = uigetdir(homedir, 'Select your souredata');
 
 if source_dir == 0
     error('No folder was selected --> I terminate the script')
@@ -128,6 +130,14 @@ for f = 1:length(sub)
         end
     end
     
+    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+    % At this point your subject folder should look like this:
+    % 01 
+    % 02
+    % ...
+    % each subfolder contains the DICOMs
+    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+    
     subDirs = dir(subjectDir);     % get the folders you just made
     
     %% Move the folders containing images into the corresponding sequence folders
@@ -136,7 +146,7 @@ for f = 1:length(sub)
     % the first dicom and move to the corresponding sequenceName
 
     for sd = 1:length(subDirs)
-        [status,num] = str2num(subDirs(sd).name);       % check if the folder is not any kind of hidden folder but one of the previous created
+        [status,num] = str2num(subDirs(sd).name);       % check if the folder is not any kind of hidden folder but one of the previously created
         if status
             currentDir = fullfile(subjectDir,subDirs(sd).name);
             % read in the first dicom header
@@ -172,7 +182,14 @@ for f = 1:length(sub)
             % Built in heuristic that if an "anat" or "struct" folder exists,
             % just rename the folder to anat
             if (contains(log.sequenceNames{sequenceIndex},'anat')||contains(log.sequenceNames{sequenceIndex},'struct'))
-                movefile(string(fullfile(currentDir,'*')), fullfile(subjectDir,log.sequenceNames{sequenceIndex}))
+                nrOfScans = length(dicoms(:,1));
+                anatomicalModality = input('You assigned the anatomical sequence. Please assign the modality (i.e. T1w, T2w or T2star): ','s');
+                % check if the number of images is right
+                if ismember(nrOfScans, log.sequenceScanNrs{sequenceIndex})
+                    movefile(string(fullfile(currentDir,'*')), fullfile(subjectDir,'anat',anatomicalModality))
+                else
+                    movefile(string(fullfile(currentDir,'*')), fullfile(subjectDir,'anat',['error-' anatomicalModality]))
+                end
                 rmdir(fullfile(currentDir))
             else
                 movefile(string(fullfile(currentDir)),...
