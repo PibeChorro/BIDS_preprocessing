@@ -104,13 +104,10 @@ for ss = 1:length(subNames) % For all subjects do each ...
     %% Conversion from functional DICOM to NIfTI
     if do.func_conversion
         folderContent   = dir(fullfile(func_dicom_dir,'run*'));
-        rawdataContent  = {};
-        for i = 1:length(folderContent)
-            rawdataContent{end+1}=[rawSubNames{ss} '_task-' taskName '_run-' num2str(i,formatSpec) '_bold'];
-        end
+        
         %% create a BIDS conform file structure for every subject
         % source data: DICOMS
-        spm_mkdir (raw_dir, rawSubNames{ss}, 'func', rawdataContent);
+        spm_mkdir (raw_dir, rawSubNames{ss}, 'func');
         % ......DICOM to NIFTI Conversion...... %
         % Get folder Content
         
@@ -125,7 +122,6 @@ for ss = 1:length(subNames) % For all subjects do each ...
             for i = 1:length(folderContent)            % loop through all folders found
                 try
                     curr_dir = fullfile(func_dicom_dir, folderContent(i).name);
-                    dest_dir = fullfile(func_nifti_dir, rawdataContent{i});
                     
                     dirfiles = [];
                     for ext = 1:length(extensions)
@@ -140,17 +136,33 @@ for ss = 1:length(subNames) % For all subjects do each ...
                     % specify spm options
                     matlabbatch{1}.spm.util.import.dicom.data               = cellstr(dirfiles(nDummies+1:end,:));
                     matlabbatch{1}.spm.util.import.dicom.root               = 'flat';
-                    matlabbatch{1}.spm.util.import.dicom.outdir             = cellstr(dest_dir);
+                    matlabbatch{1}.spm.util.import.dicom.outdir             = cellstr(func_nifti_dir);
                     matlabbatch{1}.spm.util.import.dicom.protfilter         = '.*';
                     matlabbatch{1}.spm.util.import.dicom.convopts.format    = 'nii';
                     matlabbatch{1}.spm.util.import.dicom.convopts.meta      = 0;
                     matlabbatch{1}.spm.util.import.dicom.convopts.icedims   = 0;
                     
                     fprintf('=> importing dicoms from %s\n', curr_dir);
-                    fprintf('                      to %s\n', dest_dir);
+                    fprintf('                      to %s\n', func_nifti_dir);
                     
                     % start the actual job that converts DICOMs to NIfTIs
                     spm_jobman('run', matlabbatch);
+                    clear matlabbatch
+                    
+                    % after conversion we select all created NIfTIs and
+                    % convert them into one single 4D NIfTI
+                    current_niftis                      = spm_select ('FPList', func_nifti_dir, ['^f' '.*nii']);
+                    
+                    matlabbatch{1}.spm.util.cat.vols    = cellstr(current_niftis);
+                    matlabbatch{1}.spm.util.cat.name    = fullfile (func_nifti_dir, [rawSubNames{ss} '_task-' taskName '_run-' num2str(i,formatSpec) '_bold.nii']);
+                    matlabbatch{1}.spm.util.cat.dtype   = 4;
+                    matlabbatch{1}.spm.util.cat.RT      = NaN;
+                    spm_jobman('run', matlabbatch);
+                    
+                    clear matlabbatch
+                    
+                    % After conversion we delete the 3D images
+                    delete(fullfile(func_nifti_dir, 'f*.nii'))
                     
                 catch ME
                     warning('Dicom in %s could not be converted.\n',folderContent(i).name)

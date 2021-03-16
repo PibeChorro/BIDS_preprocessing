@@ -61,7 +61,7 @@ bold_json.DelayTime = [];
 % described using a list of times (in JSON format) referring to the acquisition
 % time for each slice. The list goes through slices along the slice axis in the
 % slice encoding dimension.
-% bold_json.SliceTiming = hdr{1}.Private_0019_1029;
+bold_json.SliceTiming = hdr{1}.Private_0019_1029;
 
 % RECOMMENDED This field is REQUIRED for sequences that are described with
 % the VolumeTiming field and that not have the SliceTiming field set to allowed
