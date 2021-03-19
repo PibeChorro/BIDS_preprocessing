@@ -16,17 +16,17 @@ function DICOMconversionSPM12_BIDS()
 %-------------------------------------------------------------------------%
 fprintf(['Please select your project folder.'...
     '(ideally it should contain a folder named "sourcedata")\n\n'])
-root_dir    = uigetdir(homedir, 'Select Project Folder');
+rootDir    = uigetdir(homedir, 'Select Project Folder');
 % stop the script when no folder was selected
-if root_dir == 0
+if rootDir == 0
     error('No folder was selected --> I terminate the script')
 end
-source_dir  = fullfile(root_dir, 'sourcedata');
-if ~isfolder(source_dir)
-    fprintf(['It appears you do not have a "source_data" folder\n'...
+sourceDir  = fullfile(rootDir, 'sourcedata');
+if ~isfolder(sourceDir)
+    fprintf(['It appears you do not have a "sourcedata" folder\n'...
         'Please select the folder that contains your dicoms'])
-    source_dir  = uigetdir(root_dir, 'Select folder containing DICOMS');
-    if source_dir == 0
+    sourceDir  = uigetdir(rootDir, 'Select folder containing DICOMS');
+    if sourceDir == 0
         error('No folder was selected --> I terminate the script')
     end
 end
@@ -55,16 +55,16 @@ end
 
 % specify where to find the anatomical scan (!!! soon it will change from
 % anat to anat/T1w !!!)
-anat_dir  = 'anat/';
-anat_modality = 'T1w';
+anatDir  = 'anat/';
+anatModality = 'T1w';
 
-raw_dir         = fullfile(root_dir, 'rawdata');
+rawDir         = fullfile(rootDir, 'rawdata');
 
 %% Decide what to do
 %..............................WHAT TO DO.................................%
 do.overwrite            = 0;
-do.func_conversion      = 1;
-do.struct_conversion    = 0;
+do.funcConversion      = 1;
+do.structConversion    = 1;
 
 % TODO: create a log file to save warning and error messages
 
@@ -76,7 +76,7 @@ do.struct_conversion    = 0;
 % containing the subject names sub-<index>
 taskName = 'magic';
 formatSpec = '%02i';
-folders = dir(fullfile(source_dir,[prefix, '*']));
+folders = dir(fullfile(sourceDir,[prefix, '*']));
 subNames = {folders(:).name}; 
 nSub = length(folders);
 rawSubNames = {};
@@ -86,34 +86,34 @@ end
 
 % create the rawdata folder
 % raw data: NIFTIS unprocessed
-spm_mkdir(raw_dir, rawSubNames, anat_dir);
-spm_mkdir(raw_dir, rawSubNames, 'func'); 
+spm_mkdir(rawDir, rawSubNames, anatDir);
+spm_mkdir(rawDir, rawSubNames, 'func'); 
 % here already create the dataset_description.json file 
-createBIDS_dataset_description_json(raw_dir);
+createBIDS_dataset_description_json(rawDir);
 
 % write the dataset description json file
-BIDS_dataset_json(raw_dir);
+BIDS_dataset_json(rawDir);
 %% start to perform the conversion
-for ss = 11%:length(subNames) % For all subjects do each ...
+for ss = 1%:length(subNames) % For all subjects do each ...
     
-    nifti_dir = fullfile(raw_dir,rawSubNames{ss});
-    func_nifti_dir = fullfile(nifti_dir,'func');
+    rawSubDir       = fullfile(rawDir,rawSubNames{ss});
+    rawSubFuncDir   = fullfile(rawSubDir,'func');
     % where to find functional data
-    dicom_dir       = fullfile(source_dir,subNames{ss});
-    func_dicom_dir  = fullfile(dicom_dir,'func');
+    sourceSubDir       = fullfile(sourceDir,subNames{ss});
+    sourceSubFuncDir  = fullfile(sourceSubDir,'func');
     %% Conversion from functional DICOM to NIfTI
-    if do.func_conversion
-        folderContent   = dir(fullfile(func_dicom_dir,'run*'));
+    if do.funcConversion
+        folderContent   = dir(fullfile(sourceSubFuncDir,'run*'));
         
         %% create a BIDS conform file structure for every subject
         % source data: DICOMS
-        spm_mkdir (raw_dir, rawSubNames{ss}, 'func');
+        spm_mkdir (rawDir, rawSubNames{ss}, 'func');
         % ......DICOM to NIFTI Conversion...... %
         % Get folder Content
         
         if isempty(folderContent) % no dicoms in folder
             warning('FOLDER CONTENT IS EMPTY - PROBABLY WRONG PATH: process stopped. Press Enter to continue.')
-            disp(['SUBJECTS PATH:  ' dicom_dir])
+            disp(['SUBJECTS PATH:  ' sourceSubDir])
             pause;
         else
             fprintf('FOLDER CONTENT FOUND \n')
@@ -121,29 +121,29 @@ for ss = 11%:length(subNames) % For all subjects do each ...
             
             for i = 1:length(folderContent)            % loop through all folders found
                 try
-                    curr_dir = fullfile(func_dicom_dir, folderContent(i).name);
+                    currDir = fullfile(sourceSubFuncDir, folderContent(i).name);
                     
                     dirfiles = [];
                     for ext = 1:length(extensions)
-                        dirfiles = [dirfiles; spm_select('FPList', curr_dir, extensions{ext})];
+                        dirfiles = [dirfiles; spm_select('FPList', currDir, extensions{ext})];
                     end
                     if isempty(dirfiles)
                         warning('NO FILES WITH YOUR SPECIFIED FILEEXTENTION SELECTED - PROBABLY WRONG PATH/FILENAME: process stopped. Press Enter to continue.')
-                        disp(['CURRENT PATH:  ' curr_dir]);
+                        disp(['CURRENT PATH:  ' currDir]);
                         pause;
                     end
                     
                     % specify spm options
                     matlabbatch{1}.spm.util.import.dicom.data               = cellstr(dirfiles(nDummies+1:end,:));
                     matlabbatch{1}.spm.util.import.dicom.root               = 'flat';
-                    matlabbatch{1}.spm.util.import.dicom.outdir             = cellstr(func_nifti_dir);
+                    matlabbatch{1}.spm.util.import.dicom.outdir             = cellstr(rawSubFuncDir);
                     matlabbatch{1}.spm.util.import.dicom.protfilter         = '.*';
                     matlabbatch{1}.spm.util.import.dicom.convopts.format    = 'nii';
                     matlabbatch{1}.spm.util.import.dicom.convopts.meta      = 0;
                     matlabbatch{1}.spm.util.import.dicom.convopts.icedims   = 0;
                     
-                    fprintf('=> importing dicoms from %s\n', curr_dir);
-                    fprintf('                      to %s\n', func_nifti_dir);
+                    fprintf('=> importing dicoms from %s\n', currDir);
+                    fprintf('                      to %s\n', rawSubFuncDir);
                     
                     % start the actual job that converts DICOMs to NIfTIs
                     spm_jobman('run', matlabbatch);
@@ -151,10 +151,10 @@ for ss = 11%:length(subNames) % For all subjects do each ...
                     
                     % after conversion we select all created NIfTIs and
                     % convert them into one single 4D NIfTI
-                    current_niftis                      = spm_select ('FPList', func_nifti_dir, ['^f' '.*nii']);
+                    currentNiftis                      = spm_select ('FPList', rawSubFuncDir, ['^f' '.*nii']);
                     
-                    matlabbatch{1}.spm.util.cat.vols    = cellstr(current_niftis);
-                    matlabbatch{1}.spm.util.cat.name    = fullfile (func_nifti_dir, [rawSubNames{ss} '_task-' taskName '_run-' num2str(i,formatSpec) '_bold.nii']);
+                    matlabbatch{1}.spm.util.cat.vols    = cellstr(currentNiftis);
+                    matlabbatch{1}.spm.util.cat.name    = fullfile (rawSubFuncDir, [rawSubNames{ss} '_task-' taskName '_run-' num2str(i,formatSpec) '_bold.nii']);
                     matlabbatch{1}.spm.util.cat.dtype   = 4;
                     matlabbatch{1}.spm.util.cat.RT      = 2;
                     spm_jobman('run', matlabbatch);
@@ -162,7 +162,7 @@ for ss = 11%:length(subNames) % For all subjects do each ...
                     clear matlabbatch
                     
                     % After conversion we delete the 3D images
-                    delete(fullfile(func_nifti_dir, 'f*.nii'))
+                    delete(fullfile(rawSubFuncDir, 'f*.nii'))
                     
                 catch ME
                     warning('Dicom in %s could not be converted.\n',folderContent(i).name)
@@ -174,32 +174,32 @@ for ss = 11%:length(subNames) % For all subjects do each ...
             % give the function the directory where to store the
             % json file and the last dicom directory to read out
             % necessary information
-            BIDS_bold_json (func_nifti_dir,dirfiles(1,:),[rawSubNames{ss} '_task-' taskName '_bold.json']);
+            BIDS_bold_json (rawSubFuncDir,dirfiles(1,:),[rawSubNames{ss} '_task-' taskName '_bold.json']);
         end
     end
     
     %% Conversion from DICOM to NIfTI of STRUCTURAL image
     % (just to have it in another folder and change name)
-    if do.struct_conversion
-        curr_dir = fullfile(dicom_dir,anat_dir, anat_modality);
-        dest_dir = fullfile(nifti_dir, anat_dir);
+    if do.structConversion
+        currDir = fullfile(sourceSubDir,anatDir, anatModality);
+        destDir = fullfile(rawSubDir, anatDir);
         
         % select files (either "ima" or "IMA")
         dirfiles = [];
         for ext = 1:length(extensions)
-            dirfiles = [dirfiles; spm_select('FPList', curr_dir, extensions{ext})];
+            dirfiles = [dirfiles; spm_select('FPList', currDir, extensions{ext})];
         end
         if isempty(dirfiles)
             warning('NO FILES WITH YOUR SPECIFIED FILEEXTENTION SELECTED - PROBABLY WRONG PATH/FILENAME: process stopped. Press Enter to continue.')
-            disp(['CURRENT PATH:  ' curr_dir]);
+            disp(['CURRENT PATH:  ' currDir]);
             pause;
         end
         
-        fprintf('=> importing structural to %s\n', dest_dir);
+        fprintf('=> importing structural to %s\n', destDir);
         % specify spm options
         matlabbatch{1}.spm.util.import.dicom.data               = cellstr(dirfiles);
         matlabbatch{1}.spm.util.import.dicom.root               = 'flat';
-        matlabbatch{1}.spm.util.import.dicom.outdir             = cellstr(dest_dir);
+        matlabbatch{1}.spm.util.import.dicom.outdir             = cellstr(destDir);
         matlabbatch{1}.spm.util.import.dicom.protfilter         = '.*';
         matlabbatch{1}.spm.util.import.dicom.convopts.format    = 'nii';
         matlabbatch{1}.spm.util.import.dicom.convopts.meta      = 0;
@@ -209,8 +209,8 @@ for ss = 11%:length(subNames) % For all subjects do each ...
         
         % To this point there is no option to change the NAME of the
         % produced anatomical NIfTI - change the name manually
-        anatImg = spm_select('FPList',dest_dir,'.nii');
-        [stat, mes] = movefile(anatImg, fullfile(dest_dir,[rawSubNames{ss} '_T1w.nii']));
+        anatImg = spm_select('FPList',destDir,'.nii');
+        [stat, mes] = movefile(anatImg, fullfile(destDir,[rawSubNames{ss} '_T1w.nii']));
         
         if ~stat
             warning(mes)
@@ -218,6 +218,6 @@ for ss = 11%:length(subNames) % For all subjects do each ...
         
         % after creating the anatomical NIfTI we creat its corresponding
         % .json file
-        BIDS_anatT1w_json(dest_dir, dirfiles(1,:),[rawSubNames{ss} '_' anat_modality]);
+        BIDS_anatT1w_json(destDir, dirfiles(1,:),[rawSubNames{ss} '_' anatModality]);
     end
 end

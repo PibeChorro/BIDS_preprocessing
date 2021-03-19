@@ -28,11 +28,11 @@ workingDir = pwd;
 % DEFINE path and get relevant filenames.
 %-------------------------------------------------------------------------%
 fprintf(['Please specify the directory that contains your subjectfolders'...
-    '(ideally it should be named "source_data")\n\n']);
+    '(ideally it should be named "sourcedata")\n\n']);
 
-source_dir = uigetdir(homedir, 'Select your souredata');
+sourceDir = uigetdir(homedir, 'Select your souredata');
 
-if source_dir == 0
+if sourceDir == 0
     error('No folder was selected --> I terminate the script')
 end
 
@@ -67,7 +67,7 @@ prefix = input (['Please specify the prefix of your participant data.\n' ...
 
 fprintf('\n\n');
 
-sub = dir(fullfile(source_dir,[prefix '*']));
+sub = dir(fullfile(sourceDir,[prefix '*']));
 
 if isempty(sub)
     error('The specified directory does not contain any folders starting with the specified prefix');
@@ -95,7 +95,7 @@ end
 
 % Outer loop for the subjects
 for f = 1:length(sub)
-    subjectDir = fullfile (source_dir,sub(f).name);
+    subjectDir = fullfile (sourceDir,sub(f).name);
     %% Move images from seperate sequences in different folders
     % fill an array with all relevent data files
     dicoms = [];
@@ -154,10 +154,10 @@ for f = 1:length(sub)
             for ext = 1:length(extensions)
                 dicoms = [dicoms; spm_select('FPList', currentDir, extensions{ext})];
             end
-            first_dicom = spm_dicom_headers(dicoms(1,:));
+            firstDicom = spm_dicom_headers(dicoms(1,:));
             % read out the 'SeriesDescription' field
-            series_description = first_dicom{1}.SeriesDescription;
-            sequenceIndex = find (strcmp(log.sequenceDescriptions,series_description));
+            seriesDescription = firstDicom{1}.SeriesDescription;
+            sequenceIndex = find (strcmp(log.sequenceDescriptions,seriesDescription));
             
             % If there is a new sequence, we add it to our list
             if isempty(sequenceIndex)
@@ -165,7 +165,7 @@ for f = 1:length(sub)
                     'Please assign the correct data type to the new series description.\n'...
                     'Use meaningful names, ideally in line with BIDS naming,\n'...
                     'e.g. anat, func, dwi, etc.']);
-                log.sequenceDescriptions{end+1} = series_description;
+                log.sequenceDescriptions{end+1} = seriesDescription;
                 log.sequenceNames{end+1}        = input (['\n' log.sequenceDescriptions{end} ': '],'s');
                 imageNumber                     = input(['\n\nPlease asign a number of scans to this sequence.\n\n'...
                     '!!!!!!IMPORTANT!!!!!\n\n'...
