@@ -8,42 +8,42 @@ function preprocessingSPM12_BIDS()
 % Set root directory
 fprintf(['Please select your project folder.'...
     '(ideally it should contain a folder named "raw_data")\n\n'])
-root_dir    = uigetdir(homedir, 'Select Project Folder');
-if root_dir == 0
+rootDir    = '/Users/vpl/Documents/Master_Thesis/DATA/MRI_II'; % uigetdir(homedir, 'Select Project Folder');
+if rootDir == 0
     error('No folder was selected --> I terminate the script')
 end
 
 % Set source_data directory. This is only needed for slice time correction
-source_dir  = fullfile(root_dir,'sourcedata');
-if ~isfolder(source_dir)
+sourceDir  = fullfile(rootDir,'sourcedata');
+if ~isfolder(sourceDir)
     fprintf(['It appears you do not have a "source_data" folder.\n'...
         'Please select the folder that contains your unprocessed niftis.\n\n'])
-    raw_dir  = uigetdir(root_dir, 'Select DICOM folder');
-    if raw_dir == 0
+    sourceDir  = uigetdir(rootDir, 'Select DICOM folder');
+    if sourceDir == 0
         error('No folder was selected --> I terminate the script')
     end
 end
 
-DICOMprefix = input (['Please specify the prefix of your participant data in your SOURCEDATA directory.\n' ...
-    '(like p for participant or s for subject. It has to be unique so that only subject folders are selected):\n\n'],'s');
+DICOMprefix = 'sMag'; % input (['Please specify the prefix of your participant data in your SOURCEDATA directory.\n' ...
+%     '(like p for participant or s for subject. It has to be unique so that only subject folders are selected):\n\n'],'s');
 
-DICOMfolders = dir(fullfile(source_dir,[DICOMprefix, '*']));
+DICOMfolders = dir(fullfile(sourceDir,[DICOMprefix, '*']));
 DICOMsubNames = {DICOMfolders(:).name}; 
 
 % Set raw_data directory.
-raw_dir     = fullfile(root_dir, 'rawdata');
-if ~isfolder(raw_dir)
+rawDir     = fullfile(rootDir, 'rawdata');
+if ~isfolder(rawDir)
     fprintf(['It appears you do not have a "raw_data" folder.\n'...
         'Please select the folder that contains your unprocessed niftis.'])
-    raw_dir  = uigetdir(root_dir, 'Select unprocessed nifti folder');
-    if raw_dir == 0
+    rawDir  = uigetdir(rootDir, 'Select unprocessed nifti folder');
+    if rawDir == 0
         error('No folder was selected --> I terminate the script')
     end
 end
 
-derivative_dir = fullfile (root_dir, 'derivatives');
-if ~isfolder(derivative_dir)
-    mkdir (derivative_dir);
+derivativesDir = fullfile (rootDir, 'derivatives');
+if ~isfolder(derivativesDir)
+    mkdir (derivativesDir);
 end
 
 sub_prefix      = 'sub-';   % subject prefix - this one is REQUIRED
@@ -89,7 +89,7 @@ extensions = {'**.IMA','**.ima'}; % extension you care about
 
 %% Decide what to do
 %..............................WHAT TO DO.................................%
-do.overwrite        = 0;
+do.overwrite        = 1;
 do.realignment      = 1; % 1 = realigning and unwarp;
 do.slice_time_corr  = 1; % slice time correction (using slice TIMES); 
 do.coregistration   = 'auto'; % 'manual' or 'auto';
@@ -108,21 +108,20 @@ spm fmri;
 
 % create a BIDS conform directory structure for the NIFTIS
 % first we need to create a cell containing the subject names
+softwareName = 'spm12';
 pipelineName = 'spm12-preproc';
-folders = dir(fullfile(raw_dir,[sub_prefix, '*']));
+folders = dir(fullfile(rawDir,[sub_prefix, '*']));
 subNames = {folders(:).name}; 
 
 %% start to perform the preprocessing
-for ss = 1:length(subNames) % For all subjects do each ...
+for ss = 1:1% length(subNames) % For all subjects do each ...
     % get the unprocessed niftis
-    raw_nifti_dir = fullfile(raw_dir,subNames{ss});
+    raw_nifti_dir = fullfile(rawDir,subNames{ss});
     raw_func_nifti_dir = fullfile(raw_nifti_dir,'func');
     
     % check if structural volume exists if needed
-    dir_raw_structImg   = dir(fullfile(raw_nifti_dir, anat_dir, anat_modality, '*.nii'));
-    dir_raw_structImg   = fullfile(raw_nifti_dir, anat_dir, anat_modality, dir_raw_structImg.name);
-    folderContent       = dir(fullfile(raw_func_nifti_dir,[subNames{ss} '_' taskName '_' 'run*'])); 
-    nruns = length(folderContent);
+    dir_raw_structImg   = dir(fullfile(raw_nifti_dir, anat_dir, ['*' anat_modality '.nii']));
+    dir_raw_structImg   = fullfile(dir_raw_structImg.folder, dir_raw_structImg.name);
     
     %% create a BIDS conform file structure for every subject
     % !!!only the derivative_data folder is created here. The rest
@@ -130,14 +129,15 @@ for ss = 1:length(subNames) % For all subjects do each ...
     % 
     % project/
     %   derivative_data/
-    %       <pipeline-name>         // spm12-preproc in this case
-    %           <processing-step1>
-    %           <processing-step2>
-    %               sub<nr>/
-    %                   anat/
-    %                   func/
-    %                       run<nr>/
-    %           ...
+    %       <software-name>         // spm12 in this case
+    %           <pipeline-name>         // spm12-preproc in this case
+    %               <processing-step1>
+    %               <processing-step2>
+    %                   sub<nr>/
+    %                       anat/
+    %                       func/
+    %                           run<nr>/
+    %               ...
     %   raw_data/
     %       sub<nr>/
     %           anat/
@@ -150,20 +150,20 @@ for ss = 1:length(subNames) % For all subjects do each ...
     %               run<nr>
     %       
     % create a directory name for all preprocessing steps
-    realigned_dir               = fullfile (derivative_dir, pipelineName, 'realigned/');
-    slice_time_corrected_dir    = fullfile (derivative_dir, pipelineName, 'slice_time_corrected/');
-    coregistered_dir            = fullfile (derivative_dir, pipelineName, 'coregistered/');
-    normalized_dir              = fullfile (derivative_dir, pipelineName, 'normalized/');
-    smoothed_dir                = fullfile (derivative_dir, pipelineName, [num2str(do.smoothingSize) 'mm-smoothed/']);
-    segmented_dir               = fullfile (derivative_dir, pipelineName, 'segmented/');
+    realigned_dir               = fullfile (derivativesDir, softwareName, pipelineName, 'realigned/');
+    slice_time_corrected_dir    = fullfile (derivativesDir, softwareName, pipelineName, 'slice_time_corrected/');
+    coregistered_dir            = fullfile (derivativesDir, softwareName, pipelineName, 'coregistered/');
+    normalized_dir              = fullfile (derivativesDir, softwareName, pipelineName, 'normalized/');
+    smoothed_dir                = fullfile (derivativesDir, softwareName, pipelineName, [num2str(do.smoothingSize) 'mm-smoothed/']);
+    segmented_dir               = fullfile (derivativesDir, softwareName, pipelineName, 'segmented/');
     % establish BIDS conform data structure for each step
-    spm_mkdir (realigned_dir, subNames{ss}, 'func', {folderContent(:).name});
-    spm_mkdir (slice_time_corrected_dir, subNames{ss}, 'func', {folderContent(:).name});
-    spm_mkdir (coregistered_dir, subNames{ss}, 'func', {folderContent(:).name});
-    spm_mkdir (segmented_dir, subNames{ss}, 'anat');
-    spm_mkdir (normalized_dir, subNames{ss}, 'func', {folderContent(:).name});
-    spm_mkdir (normalized_dir,subNames{ss}, 'anat');
-    spm_mkdir (smoothed_dir, subNames{ss}, 'func', {folderContent(:).name});
+    spm_mkdir (realigned_dir,               subNames{ss}, 'func');
+    spm_mkdir (slice_time_corrected_dir,    subNames{ss}, 'func');
+    spm_mkdir (coregistered_dir,            subNames{ss}, 'func');
+    spm_mkdir (segmented_dir,               subNames{ss}, 'anat');
+    spm_mkdir (normalized_dir,              subNames{ss}, 'func');
+    spm_mkdir (normalized_dir,              subNames{ss}, 'anat');
+    spm_mkdir (smoothed_dir,                subNames{ss}, 'func');
     
     %% STARTING PREPROCESSING
     %% Realignment: Estimate & unwarp
@@ -176,8 +176,7 @@ for ss = 1:length(subNames) % For all subjects do each ...
         
         % iterate over runs
         for run = 1:nruns 
-            dir_sessdata = fullfile(raw_func_nifti_dir, folderContent(run).name);
-            dirfiles     = spm_select('FPList',dir_sessdata, ['^f' '.*nii']);
+            dirfiles     = spm_select('ExtFPList', raw_func_nifti_dir, folderContent(run).name, Inf);
             
             if strcmp(dirfiles,'')
                 warning('No files selected!');
@@ -228,33 +227,39 @@ for ss = 1:length(subNames) % For all subjects do each ...
         % move created realligned NIfTIs and other files (the mean EPI
         % NIfTI, the realignment text-files and the .mat file that is
         % created in the process from "raw_data" to "derivative_data"
+        % move all the single functional niftis
+        [success,message] = movefile(string(fullfile(raw_func_nifti_dir, 'u*')), ...
+            fullfile(realigned_dir, subNames{ss}, 'func'));
+        if ~success
+            warning(message)
+        end
+        % move the mean realigned nifti immage
+        [success,message] = movefile(string(fullfile(raw_func_nifti_dir, 'meanu*')), ...
+            fullfile(realigned_dir,subNames{ss}, 'func'));
+        if ~success
+            warning(message)
+        end
+        % move the realignment parameter .txt files
+        [success,message] = movefile(string(fullfile(raw_func_nifti_dir, 'rp*.txt')), ...
+            fullfile(realigned_dir, subNames{ss}, 'func'));
+        if ~success
+            warning(message)
+        end
+        
+        % move the created .mat files
+        [success,message] = movefile(string(fullfile(raw_func_nifti_dir, '*.mat')), ...
+            fullfile(realigned_dir, subNames{ss}, 'func'));
+        if ~success
+            warning(message)
+        end
+        
+        ra_files = dir(fullfile(realigned_dir, subNames{ss}, 'func', '*.txt'));
+        
         for run = 1:nruns 
-            % move all the single functional niftis
-            [success,message] = movefile(string(fullfile(raw_func_nifti_dir, folderContent(run).name,'u*')), ...
-                fullfile(realigned_dir, subNames{ss}, 'func', folderContent(run).name));
-            if ~success
-                warning(message)
-            end
-            % move the mean realigned nifti immage
-            [success,message] = movefile(string(fullfile(raw_func_nifti_dir, folderContent(run).name,'meanu*')), ...
-                fullfile(realigned_dir,subNames{ss}, 'func'));
-            if ~success
-                warning(message)
-            end
-            % move the realignment parameter .txt files
-            [success,message] = movefile(string(fullfile(raw_func_nifti_dir, folderContent(run).name,'rp*.txt')), ...
-                fullfile(realigned_dir, subNames{ss}, 'func', folderContent(run).name));
-            if ~success
-                warning(message)
-            end
-            
             % read in the created realignment text file and plot them in a
             % firgure and save the figure 
             try
-                % We assume only one textfile in each run directory. 
-                % TODO: make this more flexible and more secure
-                ra_dir = dir(fullfile(realigned_dir, subNames{ss}, 'func', folderContent(run).name,'*.txt'));
-                [fid, mes] = fopen(fullfile(ra_dir.folder,ra_dir.name));
+                [fid, mes] = fopen(fullfile(ra_files(run).folder,ra_files(run).name));
                 realignmentMatrix = textscan(fid, '%f%f%f%f%f%f');
                 % create figure to plot realigment parameters in
                 fig = figure;
@@ -277,18 +282,11 @@ for ss = 1:length(subNames) % For all subjects do each ...
                 legend();       % NOTICE - this is broken. The legend shows the first label correctly and the rest overlaps
                 
                 % save and close figure. Close realignment file
-                savefig(fullfile(realigned_dir, subNames{ss}, 'func', folderContent(run).name,'realignmentPlot'));
+                savefig(fullfile(realigned_dir, subNames{ss}, 'func', ['realignmentPlot_run-' num2str(run)]));
                 close(fig);
                 fclose(fid);
             catch
                 warning(mes)
-            end
-            
-            % move the mat file that is created in this step
-            [success,message] = movefile(string(fullfile(raw_func_nifti_dir, folderContent(run).name,'*uw.mat')), ...
-                fullfile(realigned_dir, subNames{ss}, 'func', folderContent(run).name));
-            if ~success
-                warning(message)
             end
         end
         % TODO: create JSON file containing processing information and
@@ -299,12 +297,14 @@ for ss = 1:length(subNames) % For all subjects do each ...
     % slice time correction for every run individually because slice timing
     % differs slightly
     if do.slice_time_corr
-        folderContent       = dir(fullfile(realigned_dir, subNames{ss}, 'func', [subNames{ss} '_' taskName '_' 'run*'])); 
-        DICOMfolderContent  = dir(fullfile(source_dir, DICOMsubNames{ss}, 'func', 'run*'));
+        currentDir          = fullfile(realigned_dir, subNames{ss}, 'func');
+        folderContent       = dir(fullfile(currentDir, ['u' subNames{ss} '_' taskName '_' 'run*'])); 
+        DICOMfolderContent  = dir(fullfile(sourceDir, DICOMsubNames{ss}, 'func', 'run*'));
+        nruns               = length(folderContent);
         fprintf('SLICE TIME CORRECTION\n\n')
         for run=1:nruns % for number of runs
             % load a dicom header that contains information needed for analysis
-            dicom_dir           = fullfile(source_dir,DICOMsubNames{ss},'func',DICOMfolderContent(run).name);
+            dicom_dir           = fullfile(sourceDir,DICOMsubNames{ss},'func',DICOMfolderContent(run).name);
             % select all dicom files from the current run
             dicom_files = [];
             for ext = 1:length(extensions)
@@ -328,12 +328,7 @@ for ss = 1:length(subNames) % For all subjects do each ...
             sequence.sliceTstamps       = hdr{1}.Private_0019_1029;         % slice times in milliseconds
             
             % select files to slice time correct
-            nifti_files = dir (fullfile(realigned_dir, subNames{ss}, 'func', folderContent(run).name ,'/uf*.nii')); % AFTER REALINGMENT!
-            
-            % add the full path MUST BE EASIER TO DO
-            for file = 1:length({nifti_files.name})
-                nifti_files(file).name = fullfile(realigned_dir, subNames{ss}, 'func', folderContent(run).name, nifti_files(file).name);
-            end
+            nifti_files = spm_select('ExtFPList', currentDir, folderContent(run).name, Inf); % AFTER REALINGMENT!
             
             % find reference slice (the one in the middle) - if using
             % median one has two values --> select one of them using "min"
@@ -341,7 +336,7 @@ for ss = 1:length(subNames) % For all subjects do each ...
             [~, refInd] = min(tmp);
             
             % sanity check TR.
-            if max(sequence.sliceTstamps)/1000 > sequence.TR %JB Shouldn't it be sequence.TR/1000 to be comparable? @PRG
+            if max(sequence.sliceTstamps)/1000 > sequence.TR 
                 error('Found a slice timestamp that exceeds our TR! Make sure you did not select the first image in you run folder to assess slice timing!')
             end
             
@@ -356,7 +351,7 @@ for ss = 1:length(subNames) % For all subjects do each ...
             end
             
             % generate matlabbatch for slice time correction with everthing
-            matlabbatch{1}.spm.temporal.st.scans      = {{nifti_files.name}'}; % nifti files
+            matlabbatch{1}.spm.temporal.st.scans      = {cellstr(nifti_files)}; % nifti files
             matlabbatch{1}.spm.temporal.st.nslices    = sequence.N_slices; % nr. slices
             matlabbatch{1}.spm.temporal.st.tr         = sequence.TR; % TR
             matlabbatch{1}.spm.temporal.st.ta         = 0; % will be ignored because we use slice_times (from SPM: "if the next two items (slice order & reference slice) are entered in milliseconds, this entry will not be used and can be set to 0")
@@ -368,15 +363,12 @@ for ss = 1:length(subNames) % For all subjects do each ...
             spm('defaults', 'FMRI');
             spm_jobman('run', jobs);
             clearvars matlabbatch
-            [success,message] = movefile(string(fullfile(realigned_dir, subNames{ss}, 'func', folderContent(run).name,'a*')), ...
-                fullfile(slice_time_corrected_dir, subNames{ss}, 'func', folderContent(run).name));
-            if ~success
-                warning(message)
-            end
-            subjprep(ss).slice_time_correction = 'Done';
-            subjprep(ss).slice_time_ref_slice  = [sequence.sliceTstamps(refInd); refInd];
-            subjprep(ss).slice_times           = sequence.sliceTstamps;
             
+        end
+        [success,message] = movefile(string(fullfile(realigned_dir, subNames{ss}, 'func', 'a*')), ...
+            fullfile(slice_time_corrected_dir, subNames{ss}, 'func'));
+        if ~success
+            warning(message)
         end
     end
     
@@ -385,10 +377,11 @@ for ss = 1:length(subNames) % For all subjects do each ...
         % copy the slice time corrected images in the coregistration folder
         % then perform the coregistration on the copied images
         % TODO: add a prefix ('c') to files in the coregistation folder
-        folderContent = dir(fullfile(slice_time_corrected_dir, subNames{ss}, 'func', [subNames{ss} '_' taskName '_' 'run*'])); 
+        folderContent = dir(fullfile(slice_time_corrected_dir, subNames{ss}, 'func', ['au' subNames{ss} '_' taskName '_' 'run*'])); 
+        nruns               = length(folderContent);
         for run = 1:length(folderContent)
             [success,message] = copyfile(fullfile(slice_time_corrected_dir, subNames{ss}, 'func', folderContent(run).name),...
-                fullfile(coregistered_dir, subNames{ss}, 'func', folderContent(run).name));
+                fullfile(coregistered_dir, subNames{ss}, 'func'));
             if ~success
                 warning(message)
             end
@@ -396,13 +389,13 @@ for ss = 1:length(subNames) % For all subjects do each ...
         
         % also copy the mean EPI image from the realignment folder into the
         % coregistation folder
-        [success,message] = copyfile(fullfile(realigned_dir, subNames{ss}, 'func',['meanuf' '*.nii']),...
+        [success,message] = copyfile(fullfile(realigned_dir, subNames{ss}, 'func',['meanu' '*.nii']),...
             fullfile(coregistered_dir, subNames{ss}, 'func'));
         if ~success
                 warning(message)
         end
         
-        meanEpi = dir(fullfile(coregistered_dir, subNames{ss}, 'func' ,['meanuf' '*.nii']));
+        meanEpi = dir(fullfile(coregistered_dir, subNames{ss}, 'func' ,['meanu' '*.nii']));
         meanEpi = fullfile(coregistered_dir, subNames{ss}, 'func', meanEpi.name);
         if strcmpi(do.coregistration, 'manual')
             % TODO: this is not up to date and won't work
@@ -418,8 +411,8 @@ for ss = 1:length(subNames) % For all subjects do each ...
             
             alltargets = {}; %JB It's necessary to initialize alltargets as a cell array, as this can prevent the vertcat error if paths from different runs have different character lengths.
             for run = 1:nruns
-                dir_sessdata = fullfile(coregistered_dir, subNames{ss}, 'func',  folderContent(run).name);
-                dirfiles     = spm_select('FPList',dir_sessdata, ['^auf' '.*nii']);
+                dir_sessdata = fullfile(coregistered_dir, subNames{ss}, 'func');
+                dirfiles     = spm_select('ExtFPList', dir_sessdata, folderContent(run).name, Inf);
                 if strcmp(dirfiles,'')
                     warning('No files selected!');
                     return;
@@ -491,22 +484,22 @@ for ss = 1:length(subNames) % For all subjects do each ...
         spm_jobman('run', jobs);
         
         % move the segmentation images into the derivative folder
-        [success,message] = movefile(fullfile(raw_nifti_dir, anat_dir, anat_modality,'c*.nii'),...
+        [success,message] = movefile(fullfile(raw_nifti_dir, anat_dir, 'c*.nii'),...
             fullfile(segmented_dir, subNames{ss}, 'anat'));
         if ~success
                 warning(message)
         end
-        [success,message] = movefile(fullfile(raw_nifti_dir, anat_dir, anat_modality,'i*.nii'),...
+        [success,message] = movefile(fullfile(raw_nifti_dir, anat_dir, 'i*.nii'),...
             fullfile(segmented_dir, subNames{ss}, 'anat'));
         if ~success
                 warning(message)
         end
-        [success,message] = movefile(fullfile(raw_nifti_dir, anat_dir, anat_modality,'y*.nii'),...
+        [success,message] = movefile(fullfile(raw_nifti_dir, anat_dir, 'y*.nii'),...
             fullfile(segmented_dir, subNames{ss}, 'anat'));
         if ~success
                 warning(message)
         end
-        [success,message] = movefile(fullfile(raw_nifti_dir, anat_dir, anat_modality,'*.mat'),...
+        [success,message] = movefile(fullfile(raw_nifti_dir, anat_dir, '*.mat'),...
             fullfile(segmented_dir, subNames{ss}, 'anat'));
         if ~success
                 warning(message)
@@ -520,21 +513,22 @@ for ss = 1:length(subNames) % For all subjects do each ...
         
         fprintf('NORMALISATION USING SEGMENTATION\n\n')
         
-        struct_defForward = dir(fullfile (segmented_dir, subNames{ss}, 'anat','y_*.nii'));
-        folderContent = dir(fullfile(coregistered_dir, subNames{ss}, 'func', [subNames{ss} '_' taskName '_' 'run*']));
+        struct_defForward   = dir(fullfile (segmented_dir, subNames{ss}, 'anat','y_*.nii'));
+        folderContent       = dir(fullfile(coregistered_dir, subNames{ss}, 'func', ['au' subNames{ss} '_' taskName '_' 'run*.nii']));
+        nruns               = length(folderContent);
         
-        meanEpi = dir(fullfile(coregistered_dir, subNames{ss}, 'func', ['meanuf' '*.nii']));
+        meanEpi = dir(fullfile(coregistered_dir, subNames{ss}, 'func', ['meanu' '*.nii']));
         meanEpi = fullfile(coregistered_dir, subNames{ss}, 'func', meanEpi.name);
         
         alltargets = {}; %JB It's necessary to initialize alltargets as a cell array, as this can prevent the vertcat error if paths from different runs have different character lengths.
         for r = 1:nruns
-            dir_sessdata = fullfile(coregistered_dir, subNames{ss}, 'func', folderContent(r).name);
-            dirfiles     = spm_select('FPList',dir_sessdata, ['^auf' '.*nii']);
+            dir_sessdata = fullfile(coregistered_dir, subNames{ss}, 'func');
+            dirfiles     = spm_select('ExtFPList', dir_sessdata, folderContent(r).name, Inf);
             if strcmp(dirfiles,'')
                 warning('No files selected!');
                 return;
             end
-            alltargets = [alltargets; cellstr(dirfiles)]; %#ok<*AGROW>
+            alltargets = [alltargets; cellstr(dirfiles)]; 
         end
         
         alltargets = cellstr(alltargets);
@@ -553,46 +547,40 @@ for ss = 1:length(subNames) % For all subjects do each ...
         spm('defaults', 'FMRI');
         spm_jobman('run', jobs);
         clearvars matlabbatch
+        
         % move created normalized niftis in a seperate folder
-        for r = 1:nruns
-            % move the 
-            [success,message] = movefile(fullfile(coregistered_dir, subNames{ss}, 'func', folderContent(r).name,'w*.nii'),...
-                fullfile(normalized_dir, subNames{ss}, 'func', folderContent(r).name));
-            if ~success
-                warning(message)
-            end
+        [success,message] = movefile(fullfile(coregistered_dir, subNames{ss}, 'func', 'w*.nii'),...
+            fullfile(normalized_dir, subNames{ss}, 'func'));
+        if ~success
+            warning(message)
         end
         
         % move the created normalized anatomical image in a seperate folder
-        [success,message] = movefile(fullfile(raw_nifti_dir, anat_dir, anat_modality,'w*.nii'),...
+        [success,message] = movefile(fullfile(raw_nifti_dir, anat_dir, 'w*.nii'),...
             fullfile(normalized_dir, subNames{ss}, 'anat'));
         if ~success
                 warning(message)
-        end
-        % move the mean normalized image
-        [success,message] = movefile(fullfile(coregistered_dir, subNames{ss}, 'func', 'wmean*.nii'),...
-                fullfile(normalized_dir, subNames{ss}, 'func'));
-        if ~success
-            warning(message)
         end
     end
     
     %% Smoothing
     if do.smoothing
         fprintf('SMOOTHING\n\n')
-        folderContent = dir(fullfile(normalized_dir, subNames{ss}, 'func', [subNames{ss} '_' taskName '_' 'run*']));
+        folderContent = dir(fullfile(normalized_dir, subNames{ss}, 'func', ['wau' subNames{ss} '_' taskName '_' 'run*']));
+        nruns         = length(folderContent);
         
         alltargets = {};
                 
         for r = 1:nruns
-            dir_sessdata = fullfile(normalized_dir, subNames{ss}, 'func', folderContent(r).name);
+            
             if strcmp(do.smoothNorm,'mni') == 1
-                dirfiles     = spm_select('FPList',dir_sessdata, ['^wauf' '.*nii']); 
+                dir_sessdata = fullfile(normalized_dir, subNames{ss}, 'func');
             elseif strcmp(do.smoothNorm, 'native') == 1
-                dirfiles     = spm_select('FPList',dir_sessdata, ['^auf' '.*nii']); 
+                dir_sessdata = fullfile(coregistered_dir, subNames{ss}, 'func');
             elseif strcmp(do.smoothNorm, 'both') == 1
                  % TO-DO
             end
+            dirfiles     = spm_select('ExtFPList', dir_sessdata, folderContent(r).name, Inf);
                 
             if strcmp(dirfiles,'')
                 warning('No files selected!');
@@ -612,8 +600,8 @@ for ss = 1:length(subNames) % For all subjects do each ...
         spm_jobman('run', jobs);
         clearvars matlabbatch
         for r = 1:nruns
-            [success,message] = movefile(fullfile(normalized_dir, subNames{ss}, 'func', folderContent(r).name,['s' num2str(do.smoothingSize) '*.nii']),...
-                fullfile(smoothed_dir, subNames{ss}, 'func', folderContent(r).name));
+            [success,message] = movefile(fullfile(normalized_dir, subNames{ss}, 'func', ['s' num2str(do.smoothingSize) '*.nii']),...
+                fullfile(smoothed_dir, subNames{ss}, 'func'));
             if ~success
                 warning(message)
             end
