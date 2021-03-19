@@ -359,9 +359,8 @@ for ss = 1:1% length(subNames) % For all subjects do each ...
             matlabbatch{1}.spm.temporal.st.refslice   = sequence.sliceTstamps( refInd ); % reference time stamp (in ms), the one in the middle
             matlabbatch{1}.spm.temporal.st.prefix     = 'a';
             
-            jobs = matlabbatch;
             spm('defaults', 'FMRI');
-            spm_jobman('run', jobs);
+            spm_jobman('run', matlabbatch);
             clearvars matlabbatch
             
         end
@@ -430,9 +429,8 @@ for ss = 1:1% length(subNames) % For all subjects do each ...
                 0.01 0.01 0.01 0.001 0.001 0.001];                                                              % Iterations stop when less than tolerance
             matlabbatch{1}.spm.spatial.coreg.estimate.eoptions.fwhm     = [7 7];                                % Gaussian smoothing to be applied
 
-            jobs = matlabbatch;
             spm('defaults', 'FMRI');
-            spm_jobman('run', jobs);
+            spm_jobman('run', matlabbatch);
             clearvars matlabbatch
         end
     end
@@ -542,9 +540,8 @@ for ss = 1:1% length(subNames) % For all subjects do each ...
         matlabbatch{1}.spm.spatial.normalise.write.woptions.interp  = 4;
         matlabbatch{1}.spm.spatial.normalise.write.woptions.prefix  = 'w';
         
-        jobs = matlabbatch;
         spm('defaults', 'FMRI');
-        spm_jobman('run', jobs);
+        spm_jobman('run', matlabbatch);
         clearvars matlabbatch
         
         % move created normalized niftis in a seperate folder
@@ -588,22 +585,19 @@ for ss = 1:1% length(subNames) % For all subjects do each ...
             alltargets = [alltargets; cellstr(dirfiles)];
         end
         
-        matlabbatch{1}.spm.spatial.smooth.data = cellstr(alltargets);
-        matlabbatch{1}.spm.spatial.smooth.fwhm = repmat(do.smoothingSize,1,3); % Set at the beginning.
-        matlabbatch{1}.spm.spatial.smooth.dtype = 0;
-        matlabbatch{1}.spm.spatial.smooth.im = 0;
-        matlabbatch{1}.spm.spatial.smooth.prefix = ['s' num2str(do.smoothingSize)];
+        matlabbatch{1}.spm.spatial.smooth.data      = cellstr(alltargets);
+        matlabbatch{1}.spm.spatial.smooth.fwhm      = repmat(do.smoothingSize,1,3); % Set at the beginning.
+        matlabbatch{1}.spm.spatial.smooth.dtype     = 0;
+        matlabbatch{1}.spm.spatial.smooth.im        = 0;
+        matlabbatch{1}.spm.spatial.smooth.prefix    = ['s' num2str(do.smoothingSize)];
         
-        jobs = matlabbatch;
         spm('defaults', 'FMRI');
-        spm_jobman('run', jobs);
+        spm_jobman('run', matlabbatch);
         clearvars matlabbatch
-        for r = 1:nruns
-            [success,message] = movefile(fullfile(normalizedDir, subNames{ss}, 'func', ['s' num2str(do.smoothingSize) '*.nii']),...
-                fullfile(smoothedDir, subNames{ss}, 'func'));
-            if ~success
-                warning(message)
-            end
+        [success,message] = movefile(fullfile(normalizedDir, subNames{ss}, 'func', ['s' num2str(do.smoothingSize) '*.nii']),...
+            fullfile(smoothedDir, subNames{ss}, 'func'));
+        if ~success
+            warning(message)
         end
     end
 end
