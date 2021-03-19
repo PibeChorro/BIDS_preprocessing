@@ -29,7 +29,5 @@ Right now the selection of files is managed with a gui. Does not work on the clu
 ### `DICOMconversionSPM12_BIDS.m
 
 - [ ] get the json-file done
-  - [ ] check for entries that are MUST HAVES and include them
+  - [x] check for entries that are MUST HAVES and include them
   - [ ] add a `switch` `case` statement to ask for different scanner/institutes, hence differing DICOM headers
-- [ ] get the tsv files done
-  - [ ] check for entries that are MUST HAVES and include them
