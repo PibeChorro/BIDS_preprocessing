@@ -1,9 +1,9 @@
 # BIDS_preprocessing
 A matlab prepocessing pipeline to create a BIDS compatible data set <br>
----------------------------------------------------------------------------------------------------------------------------------------------------------
+_________________________________________________________________________________________________________________________________________________________
 **IMPORTANT!!!** All the scripts here were not yet tested on a REAL BIDS-dataset and for now only works on a very simple dataset.<br>
 It still has to be tested for datasets containing additional `tsv` and `json` files.<br>
----------------------------------------------------------------------------------------------------------------------------------------------------------
+_________________________________________________________________________________________________________________________________________________________
 
 0: You need to have a project folder containing a "sourcedata" folder. This folder should contain your subject folders which themselves only contain the DICOMs<br>
 - myProject
@@ -50,13 +50,13 @@ You also need to deliver the number of images in this scan. ***!!!IMPORTANT!!!**
   - rawdata
     - sub-01
       - func
-        - sub-01_task-<label>.json
-        - sub-01_task-<label>_run-01_bold.nii
-        - sub-01_task-<label>_run-02_bold.nii
+        - sub-01_task-\<label\>.json
+        - sub-01_task-\<label\>_run-\<index\>_bold.nii
+        - sub-01_task-\<label\>_run-\<index\>_bold.nii
         - ...
       - anat
-        - sub-01_<modality>.json
-        - sub-01_<modality>.nii
+        - sub-01_\<modality\>.json
+        - sub-01_\<modality\>.nii
     - sub-02
     - sub-03
   - sourcedata
@@ -70,18 +70,19 @@ You also need to deliver the number of images in this scan. ***!!!IMPORTANT!!!**
 
 - myProject
   - derivative_data
-    - <other-pipeline>
+    - \<other-pipeline\>
     - spm12
       - spm12-preproc
         - 6smoothed
           - sub-01
             - func
-              - s6wausub-01_task<label>_run-<index>_bold.nii
+              - s6wausub-01_task\<label\>_run-\<index\>_bold.nii
+              - ...
           - sub-02 
         - coregistered
         - normalized
         - realigned
         - segmented
         - slice_time_corrected
-  - raw_data
-  - source_data
+  - rawdata
+  - sourcedata
