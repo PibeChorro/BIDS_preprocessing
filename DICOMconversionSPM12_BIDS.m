@@ -64,7 +64,7 @@ raw_dir         = fullfile(root_dir, 'rawdata');
 %..............................WHAT TO DO.................................%
 do.overwrite            = 0;
 do.func_conversion      = 1;
-do.struct_conversion    = 1;
+do.struct_conversion    = 0;
 
 % TODO: create a log file to save warning and error messages
 
@@ -94,7 +94,7 @@ createBIDS_dataset_description_json(raw_dir);
 % write the dataset description json file
 BIDS_dataset_json(raw_dir);
 %% start to perform the conversion
-for ss = 1:length(subNames) % For all subjects do each ...
+for ss = 11%:length(subNames) % For all subjects do each ...
     
     nifti_dir = fullfile(raw_dir,rawSubNames{ss});
     func_nifti_dir = fullfile(nifti_dir,'func');
@@ -156,7 +156,7 @@ for ss = 1:length(subNames) % For all subjects do each ...
                     matlabbatch{1}.spm.util.cat.vols    = cellstr(current_niftis);
                     matlabbatch{1}.spm.util.cat.name    = fullfile (func_nifti_dir, [rawSubNames{ss} '_task-' taskName '_run-' num2str(i,formatSpec) '_bold.nii']);
                     matlabbatch{1}.spm.util.cat.dtype   = 4;
-                    matlabbatch{1}.spm.util.cat.RT      = NaN;
+                    matlabbatch{1}.spm.util.cat.RT      = 2;
                     spm_jobman('run', matlabbatch);
                     
                     clear matlabbatch
@@ -174,7 +174,7 @@ for ss = 1:length(subNames) % For all subjects do each ...
             % give the function the directory where to store the
             % json file and the last dicom directory to read out
             % necessary information
-            BIDS_bold_json (func_nifti_dir,dirfiles(1,:),[rawSubNames{ss} '_task-' taskName '_bold.json'])
+            BIDS_bold_json (func_nifti_dir,dirfiles(1,:),[rawSubNames{ss} '_task-' taskName '_bold.json']);
         end
     end
     
