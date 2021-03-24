@@ -8,7 +8,7 @@ function preprocessingSPM12_BIDS()
 % Set root directory
 fprintf(['Please select your project folder.'...
     '(ideally it should contain a folder named "raw_data")\n\n'])
-rootDir    = '/Users/vpl/Documents/Master_Thesis/DATA/MRI_II'; % uigetdir(homedir, 'Select Project Folder');
+rootDir    = '/Users/vpl/Documents/Master_Thesis/DATA/MRI'; % uigetdir(homedir, 'Select Project Folder');
 if rootDir == 0
     error('No folder was selected --> I terminate the script')
 end
@@ -91,7 +91,7 @@ DICOMsExtensions = {'**.IMA','**.ima'}; % extension you care about
 %..............................WHAT TO DO.................................%
 do.overwrite        = 1;
 do.realignment      = 1; % 1 = realigning and unwarp;
-do.sliceTimeCorr  = 1; % slice time correction (using slice TIMES); 
+do.sliceTimeCorr    = 1; % slice time correction (using slice TIMES); 
 do.coregistration   = 'auto'; % 'manual' or 'auto';
 do.segmentation     = 1;
 do.normalisation    = 1; 
@@ -114,7 +114,7 @@ folders         = dir(fullfile(rawDir,[subPrefix, '*']));
 subNames        = {folders(:).name}; 
 
 %% start to perform the preprocessing
-for ss = 1:1% length(subNames) % For all subjects do each ...
+for ss = 2:21% length(subNames) % For all subjects do each ...
     % get the unprocessed niftis
     rawSubDir       = fullfile(rawDir,subNames{ss});
     rawSubFuncDir   = fullfile(rawSubDir,'func');
@@ -170,7 +170,7 @@ for ss = 1:1% length(subNames) % For all subjects do each ...
     if do.realignment
         
         % getting the raw functional NIfTIs out of the 'rawdata' directory
-        folderContent = dir(fullfile(rawSubFuncDir,[subNames{ss} '_' taskName '_' 'run*'])); 
+        folderContent = dir(fullfile(rawSubFuncDir,[subNames{ss} '_' taskName '_' 'run*.nii'])); 
         nruns = length(folderContent);
         fprintf('STARTING REALIGNMENT AND UNWARPING \n\n')
         
@@ -233,12 +233,19 @@ for ss = 1:1% length(subNames) % For all subjects do each ...
         if ~success
             warning(message)
         end
-        % move the mean realigned nifti immage
+        % move and then rename the mean realigned nifti immage
         [success,message] = movefile(string(fullfile(rawSubFuncDir, 'meanu*')), ...
             fullfile(realignedDir,subNames{ss}, 'func'));
         if ~success
             warning(message)
         end
+        
+        [success,message] = movefile(string(fullfile(realignedDir,subNames{ss}, 'func', ['meanu' subNames{ss} '_task-' taskLabels{1} '_run-01_bold.nii'])), ...
+            fullfile(realignedDir,subNames{ss}, 'func', ['meanu' subNames{ss} '_task-' taskLabels{1} '_bold.nii']),'f');
+        if ~success
+            warning(message)
+        end
+        
         % move the realignment parameter .txt files
         [success,message] = movefile(string(fullfile(rawSubFuncDir, 'rp*.txt')), ...
             fullfile(realignedDir, subNames{ss}, 'func'));
