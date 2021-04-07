@@ -17,6 +17,7 @@
 % sortDicomsIntoFolders
 %
 % Original: JB 07/2019
+% Modified: VP 03/2021
 %-------------------------------------------------------------------------%
 %-------------------------------------------------------------------------%
 
@@ -30,7 +31,7 @@ workingDir = pwd;
 fprintf(['Please specify the directory that contains your subjectfolders'...
     '(ideally it should be named "sourcedata")\n\n']);
 
-sourceDir = uigetdir(homedir, 'Select your souredata');
+sourceDir = uigetdir(homedir, 'Select your sourcedata');
 
 if sourceDir == 0
     error('No folder was selected --> I terminate the script')
@@ -53,7 +54,7 @@ else
 end
 
 
-% specify format for folder numeration
+% specify format for folder numeration 
 formatSpec = '%02i';
 
 %-------------------------------------------------------------------------%
@@ -67,7 +68,7 @@ prefix = input (['Please specify the prefix of your participant data.\n' ...
 
 fprintf('\n\n');
 
-sub = dir(fullfile(sourceDir,[prefix '*']));
+sub = dir(fullfile(sourceDir,[prefix '*'])); % This will give you also the number of subjects = number of folders.
 
 if isempty(sub)
     error('The specified directory does not contain any folders starting with the specified prefix');
@@ -104,7 +105,7 @@ for f = 1:length(sub)
     end
     
     % check if the dicoms array is empty. 
-    % If so it could mean that this sorting procedur already has been
+    % If so it could mean that this sorting procedure already has been
     % performed on the folder or it is empty
     if isempty(dicoms)
         folderContent = dir(subjectDir);
@@ -138,7 +139,7 @@ for f = 1:length(sub)
     % each subfolder contains the DICOMs
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
     
-    subDirs = dir(subjectDir);     % get the folders you just made
+    subDirs = dir(subjectDir);     % get the folders you just made within one subject
     
     %% Move the folders containing images into the corresponding sequence folders
     % Iterate over all folders and if it is a numeric (from the
@@ -146,7 +147,7 @@ for f = 1:length(sub)
     % the first dicom and move to the corresponding sequenceName
 
     for sd = 1:length(subDirs)
-        [status,num] = str2num(subDirs(sd).name);       % check if the folder is not any kind of hidden folder but one of the previously created
+        [status,num] = str2num(subDirs(sd).name);       % check if the folder is not any kind of hidden folder but one of the previously created (--> looks for number! e.g., 01, 02, etc.)
         if status
             currentDir = fullfile(subjectDir,subDirs(sd).name);
             % read in the first dicom header
@@ -161,7 +162,7 @@ for f = 1:length(sub)
             
             % If there is a new sequence, we add it to our list
             if isempty(sequenceIndex)
-                fprintf (['A new sequece description was found.\n'...
+                fprintf (['A new sequence description was found.\n'...
                     'Please assign the correct data type to the new series description.\n'...
                     'Use meaningful names, ideally in line with BIDS naming,\n'...
                     'e.g. anat, func, dwi, etc.']);
