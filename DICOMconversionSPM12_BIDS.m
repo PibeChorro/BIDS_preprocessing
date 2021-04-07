@@ -62,7 +62,7 @@ rawDir         = fullfile(rootDir, 'rawdata');
 
 %% Decide what to do
 %..............................WHAT TO DO.................................%
-do.overwrite            = 0;
+do.overwrite           = 1;
 do.funcConversion      = 1;
 do.structConversion    = 1;
 
@@ -74,11 +74,11 @@ do.structConversion    = 1;
 % create a BIDS conform directory structure for the NIFTIS
 % first we need get the number of subjects. Then we create a cell array
 % containing the subject names sub-<index>
-taskName = 'magic';
-formatSpec = '%02i';
-folders = dir(fullfile(sourceDir,[prefix, '*']));
-subNames = {folders(:).name}; 
-nSub = length(folders);
+taskName    = 'magic';
+formatSpec  = '%02i';
+folders     = dir(fullfile(sourceDir,[prefix, '*']));
+subNames    = {folders(:).name}; 
+nSub        = length(folders);
 rawSubNames = {};
 for i=1:nSub
     rawSubNames{end+1} = ['sub-' num2str(i,formatSpec)];
@@ -88,13 +88,11 @@ end
 % raw data: NIFTIS unprocessed
 spm_mkdir(rawDir, rawSubNames, anatDir);
 spm_mkdir(rawDir, rawSubNames, 'func'); 
-% here already create the dataset_description.json file 
-createBIDS_dataset_description_json(rawDir);
 
-% write the dataset description json file
+% here already create the dataset_description.json file
 BIDS_dataset_json(rawDir);
 %% start to perform the conversion
-for ss = 1%:length(subNames) % For all subjects do each ...
+for ss = 1:length(subNames) % For all subjects do each ...
     
     rawSubDir       = fullfile(rawDir,rawSubNames{ss});
     rawSubFuncDir   = fullfile(rawSubDir,'func');
@@ -151,12 +149,15 @@ for ss = 1%:length(subNames) % For all subjects do each ...
                     
                     % after conversion we select all created NIfTIs and
                     % convert them into one single 4D NIfTI
-                    currentNiftis                      = spm_select ('FPList', rawSubFuncDir, ['^f' '.*nii']);
+                    dicomFile                           = dirfiles(1,:);
+                    hdr                                 = spm_dicom_headers(dicomFile);
+                    currentNiftis                       = spm_select ('FPList', rawSubFuncDir, ['^f' '.*nii']);
                     
                     matlabbatch{1}.spm.util.cat.vols    = cellstr(currentNiftis);
                     matlabbatch{1}.spm.util.cat.name    = fullfile (rawSubFuncDir, [rawSubNames{ss} '_task-' taskName '_run-' num2str(i,formatSpec) '_bold.nii']);
                     matlabbatch{1}.spm.util.cat.dtype   = 4;
-                    matlabbatch{1}.spm.util.cat.RT      = 2;
+                    
+                    matlabbatch{1}.spm.util.cat.RT      = hdr{1}.RepetitionTime/1000;   % Repetition Time in seconds
                     spm_jobman('run', matlabbatch);
                     
                     clear matlabbatch
