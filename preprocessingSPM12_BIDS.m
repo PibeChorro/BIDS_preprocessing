@@ -90,14 +90,14 @@ DICOMsExtensions = {'**.IMA','**.ima'}; % extension you care about
 %% Decide what to do
 %..............................WHAT TO DO.................................%
 do.overwrite        = 1;
-do.realignment      = 1; % 1 = realigning and unwarp;
-do.sliceTimeCorr    = 1; % slice time correction (using slice TIMES); 
-do.coregistration   = 'auto'; % 'manual' or 'auto';
-do.segmentation     = 1;
-do.normalisation    = 1; 
+do.realignment      = 0; % 1 = realigning and unwarp;
+do.sliceTimeCorr    = 1; % 1 = slice time correction (using slice TIMES); 
+do.coregistration   = ''; % 'manual' or 'auto';
+do.segmentation     = 0;
+do.normalisation    = 0; 
 do.smoothing        = 1; %Smoothing Flag, set to 1 if you want to smooth. 
 do.smoothNorm       = 'mni'; % Smooth normalize data = 'mni', native data = 'native' or 'both'
-do.smoothingSize    = 6;
+do.smoothingSize    = 9; % in mm 
 
 % already assign realignment parameter names
 raParamNames = {'x-Axis', 'y-Axis', 'z-Axis',...
@@ -114,7 +114,7 @@ folders         = dir(fullfile(rawDir,[subPrefix, '*']));
 subNames        = {folders(:).name}; 
 
 %% start to perform the preprocessing
-for ss = 2:21% length(subNames) % For all subjects do each ...
+for ss = 1:length(subNames) % For all subjects do each ...
     % get the unprocessed niftis
     rawSubDir       = fullfile(rawDir,subNames{ss});
     rawSubFuncDir   = fullfile(rawSubDir,'func');
@@ -154,7 +154,7 @@ for ss = 2:21% length(subNames) % For all subjects do each ...
     sliceTimeCorrectedDir   = fullfile (derivativesDir, softwareName, pipelineName, 'slice_time_corrected/');
     coregisteredDir         = fullfile (derivativesDir, softwareName, pipelineName, 'coregistered/');
     normalizedDir           = fullfile (derivativesDir, softwareName, pipelineName, 'normalized/');
-    smoothedDir             = fullfile (derivativesDir, softwareName, pipelineName, [num2str(do.smoothingSize) 'mm-smoothed/']);
+    smoothedDir             = fullfile (derivativesDir, softwareName, pipelineName, [num2str(do.smoothingSize) 'mm-smoothed-' do.smoothNorm 'space/']);
     segmentedDir            = fullfile (derivativesDir, softwareName, pipelineName, 'segmented/');
     % establish BIDS conform data structure for each step
     spm_mkdir (realignedDir,            subNames{ss}, 'func');
@@ -330,7 +330,7 @@ for ss = 2:21% length(subNames) % For all subjects do each ...
 
             hdr                         = spm_dicom_headers(dicomFile);
             sequence.NumSlices          = hdr{1}.Private_0019_100a;         % Number of slices
-            sequence.TR                 = hdr{1}.RepetitionTime/1000;       % TR
+            sequence.TR                 = hdr{1}.RepetitionTime/1000;       % TR in SECONDS
             [~, sequence.sliceOrder]    = sort(hdr{1}.Private_0019_1029);   % slice order
             sequence.sliceTstamps       = hdr{1}.Private_0019_1029;         % slice times in milliseconds
             
@@ -491,7 +491,7 @@ for ss = 2:21% length(subNames) % For all subjects do each ...
         [success,message] = movefile(fullfile(rawSubDir, anatDir, 'c*.nii'),...
             fullfile(segmentedDir, subNames{ss}, 'anat'));
         if ~success
-                warning(message)
+                warning(message);
         end
         [success,message] = movefile(fullfile(rawSubDir, anatDir, 'i*.nii'),...
             fullfile(segmentedDir, subNames{ss}, 'anat'));
@@ -569,7 +569,16 @@ for ss = 2:21% length(subNames) % For all subjects do each ...
     %% Smoothing
     if do.smoothing
         fprintf('SMOOTHING\n\n')
-        folderContent = dir(fullfile(normalizedDir, subNames{ss}, 'func', ['wau' subNames{ss} '_' taskName '_' 'run*']));
+        if strcmp(do.smoothNorm,'mni') == 1
+                currDir = normalizedDir;
+                folderContent = dir(fullfile(currDir, subNames{ss}, 'func', ['wau' subNames{ss} '_' taskName '_' 'run*.nii']));
+            elseif strcmp(do.smoothNorm, 'native') == 1
+                currDir = coregisteredDir;
+                folderContent = dir(fullfile(currDir, subNames{ss}, 'func', ['au' subNames{ss} '_' taskName '_' 'run*.nii']));
+            elseif strcmp(do.smoothNorm, 'both') == 1
+                 % TO-DO
+        end
+        
         nruns         = length(folderContent);
         
         alltargets = {};
@@ -601,7 +610,7 @@ for ss = 2:21% length(subNames) % For all subjects do each ...
         spm('defaults', 'FMRI');
         spm_jobman('run', matlabbatch);
         clearvars matlabbatch
-        [success,message] = movefile(fullfile(normalizedDir, subNames{ss}, 'func', ['s' num2str(do.smoothingSize) '*.nii']),...
+        [success,message] = movefile(fullfile(currDir, subNames{ss}, 'func', ['s' num2str(do.smoothingSize) '*.nii']),...
             fullfile(smoothedDir, subNames{ss}, 'func'));
         if ~success
             warning(message)
