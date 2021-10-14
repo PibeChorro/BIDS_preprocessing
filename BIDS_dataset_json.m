@@ -18,7 +18,7 @@ dataset_description_json_name = fullfile(rawdir, 'dataset_description.json');
 
 %%  Required fields:
 
-dd_json.Name = 'Magic Project'; % name of the dataset
+dd_json.Name = 'Project'; % name of the dataset
 
 dd_json.BIDSVersion = '1.4.1'; % The version of the BIDS standard that was used
 

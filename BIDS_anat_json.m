@@ -10,7 +10,7 @@
 % modified RG 201809
 
 %%
-function anat_json = BIDS_anatT1w_json(curDir, dicomDir,anat_json_name)
+function anat_json = BIDS_anat_json(curDir, dicomDir,anat_json_name)
 
 hdr = spm_dicom_headers(dicomDir);
 
@@ -21,6 +21,10 @@ anat_json_name = fullfile([curDir anat_json_name '.json']);
 % all REQUIRED /RECOMMENDED /OPTIONAL metadata fields for Magnetic Resonance Imaging data
 
 %% Scanner Hardware metadata fields
+%% Extras:
+anat_json.Modality = hdr{1}.Modality;
+
+
 
 % RECOMMENDED Manufacturer of the equipment that produced the composite instances.
 anat_json.Manufacturer = hdr{1}.Manufacturer;
