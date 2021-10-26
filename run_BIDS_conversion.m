@@ -93,6 +93,7 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % PREPARE                                                                 %
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+clear do log params subj_params;
 
 %% Define which steps to do in this script
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -111,20 +112,11 @@ do.save           = true; % Save the Workspace and command outputs in at rootDir
 do.addBidsIgnore  = true; % Add a BIDS-ignore file
 do.addFprepIgnore = true; % Add an fprepIgnore file
 
-if do.save
-    % Everything is going to be save in a "log"-structure with sub-structures
-    % consisting of "params", "subj_params" and "do".
-    log.savefile      = ['BIDS_conversion_workspace' date];
-    diary(log.savefile)
-    diary on
-end
-disp('Running the following steps'); disp(do);
-
 
 
 %% Define parameters for all scripts
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-subjects = [7,8,11]; %#ok<*NBRAK> % Array with subject number (for Dicoms AND niftis). If EMPTY: if will get ALL subjects with param.prefix and RENAME them to sub-001, sub-002, etc!
+subjects = [7]; %#ok<*NBRAK> % Array with subject number (for Dicoms AND niftis). If EMPTY: if will get ALL subjects with param.prefix and RENAME them to sub-001, sub-002, etc!
 n_subjects = length(subjects);
 
 % Prefix of subjects in sourcedata folder
@@ -134,7 +126,7 @@ params.prefix     = 's';       % Prefix used in the subjects in dicoms ('PW', 's
 params.rootDir    = '/Volumes/pgrassi/projects/TMS-fMRI-piloting'; % Directory of the project. '/Volumes/DATA2/BIDS_test';
 params.sourceDir  = fullfile(params.rootDir, 'sourcedata'); % Dir: sourcedata. DEFAULT: rootDir/sourcedata
 params.rawDir     = fullfile(params.rootDir, 'rawdata');    % Dir: rawdata. DEFAULT:  rootDir/rawdata
-params.anatDirs         = {'anat','findtms'};     % anatomical. DEFAULT: 'anat'. In case you have different forms anatomical scans in the dicoms folders, use this to import then to rawdata. NOTE: names given by sortDicomsIntoFolders.m
+params.anatDirs         = {'anat','findtms'};     % anatomical. DEFAULT: 'anat'. In case you have different forms anatomical scans in the dicoms folders, use this to import them to rawdata. NOTE: names given by sortDicomsIntoFolders.m
 params.anatModalities   = {'T1w','T1w'};          % for BIDS conform naming _T1w. DEFAULT: 'T1w'.
 params.anatAcquisition  = {'tmscoils','findtms'}; % one specific acquisition label for each modalities. DEFAULT: '1mm'.
 params.funcDir    = 'func';     % functional. DEFAULT: 'func'
@@ -142,6 +134,16 @@ params.funcrefDir = 'func_ref'; % functional SB reference scans (MB sequences). 
 params.fmapDir    = 'fmap';     % fieldmaps. DEFAULT: 'fmap'
 params.excludeDir = 'excluded'; % excluded functional runs. DEFAULT: 'excluded'
 params.saveDir    = 'Dicom2Bids'; % rootDir/Code/Dicom2Bids;
+
+% Display what to do, start the diary if wanted.
+if do.save
+    % Everything is going to be save in a "log"-structure with sub-structures
+    % consisting of "params", "subj_params" and "do".
+    log.savefile      = ['BIDS_conversion_workspace_' date];
+    diary(fullfile(params.rootDir, 'Code', params.saveDir, log.savefile));
+    diary on
+end
+disp('Running the following steps'); disp(do);
 
 % Other specificiations
 params.formatSpec    = '%03i';    % Format specification for the subject (e.g., 'sub-001').
@@ -159,6 +161,7 @@ if isempty(subjects) && params.runQuestions
         end
     end
 end
+
 
 %% Define parameters for some steps (what to do in which function, etc)
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -179,6 +182,7 @@ if do.dicom2nifti
     params.path2exe           = '/Applications/MRIcroGL.app/Contents/Resources/'; % if using dcm2niix
     params.nDummies           = 5;          % number of dummy images. DEFAULT: none. If using SPM: dummy volumes are discarded, if using dcm2niix: no volume is discarded
 end
+
 
 %% Get subjects folders from source data
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -225,27 +229,26 @@ hdr         = {'filename', 'run' 'task'}; % header
 tasks       = {'TMSlow','TMShigh'};       % which task
 
 % Enter values per subject of interest
-ss = 1; % subject index 1 from "subjects" array.
+ss = 1; % subject index from "subjects" array, rawSubNames and subNames;
+subj_params(ss).rawname     = params.rawSubNames{ss};
+subj_params(ss).sourcename  = params.subNames{ss};
 subj_params(ss).hdr         = hdr;
 subj_params(ss).runs        = {{'2'},{'3'},{'4'},{'5'},{'6'},{'7'}}'; % which functional runs;
 subj_params(ss).run2exclude = 1; % which runs to exclude (will be put into a separate folder
 subj_params(ss).tasks       = {tasks{1},tasks{2},tasks{1},tasks{2},tasks{1},tasks{2}}'; % Low-high-low-high-low-high
 
-ss = ss + 1;
-subj_params(ss).hdr         = hdr;
-subj_params(ss).runs        = {{'1'},{'2'},{'3'},{'5'},{'6'},{'7'}}'; % which functional runs;
-subj_params(ss).run2exclude = 4; % which runs to exclude (will be put into a separate folder
-subj_params(ss).tasks       = {tasks{2},tasks{1},tasks{2},tasks{1},tasks{2},tasks{1}}'; % Low-high-low-high-low-high
-
-ss = ss + 1;
-subj_params(ss).hdr         = hdr;
-subj_params(ss).runs        = {{'1'},{'2'},{'3'},{'4'},{'5'},{'6'}}'; % which functional runs;
-subj_params(ss).run2exclude = 7; % which runs to exclude (will be put into a separate folder
-subj_params(ss).tasks       = {tasks{1},tasks{2},tasks{1},tasks{2},tasks{1},tasks{2}}'; % Low-high-low-high-low-high
-
 if length(subj_params) ~= n_subjects; error('Wrong number of subjects specified/wrong number of subjects defined'); end
 
+
 for ss = 1:n_subjects
+    
+    % Sanity check: control that the included/excluded runs have no
+    % intersection. TO-DO alternative: first define runs to INCLUDE, and
+    % THEN define the excluded runs based on that variable, then there is
+    % no room for mistakes.
+    tmpruns = str2num(cell2mat(cat(1,subj_params(ss).runs{:})))'; %#ok<ST2NM>
+    if any(subj_params(ss).run2exclude, tmpruns)); error('Subject %s run inclusion/exclusion definition is not consistent',subj_params(ss).sourcename); end
+    
     for i = 1:length(subj_params(ss).runs)
         runs_filenames{i} = [params.funcDir '/' params.rawSubNames{ss} '_task-' subj_params(ss).tasks{1} '_run-' subj_params(ss).runs{i}{1} '_bold.nii.gz'];
     end
