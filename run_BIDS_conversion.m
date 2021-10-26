@@ -1,26 +1,91 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % SCRIPT: run_BIDS_conversion
-% This script will:
-%     * Sort dicoms into folders:
-%           --> using function: sortDicomsIntoFolders.m
-%     * Create BIDS-conform folder structure (source and rawdata)
-%     * Create a dataset.json file
-%     * Create a _scan.tsv file
-%     * Convert dicoms to niftis:
-%           --> using function: DICOMconversion_BIDS
-%     * Create functional json files.
-%     * Modify fieldmap json files.
-%     * Create a bids-ignore file
+%
+% This script starts with unsorted DICOM images and transforms them into
+% NIFTI format with a BIDS-compatible structure. Thus it will create json
+% sidecar files, rename niftis, etc.
+%
+% DEPENDENCIES:
+%    * SPM (https://www.fil.ion.ucl.ac.uk/spm/software/spm12/):
+%               for DICOM 2 nifti conversion (optional) and file control
+%    * dcm2niix (https://github.com/rordenlab/dcm2niix): 
+%               for DICOM 2 nifti conversion (optional) and JSON file generation
+%    * JSONio (https://github.com/gllmflndn/JSONio):
+%               for reading and writing json files in matlab
+%    * and secondary matlab functions. Specially:
+%         - sortDicomIntoFolders.m (STEP 1)
+%         - DICOMconversion_BIDS.m (STEP 6)
+%
+% IMPORTANT: please read the help of sortDicomsIntoFolder.m and DICOMSconversion_BIDS.m
+%            to run the pipeline without problems.
+%
+% GENERAL NOTES ABOUT THE USE:
+% The script consists of a PREPARATION and an EXECUTION part. Each
+% consisting of different steps. The user NEEDS to define parameters in the
+% PREPARATION PART.
+%
+% PREPARATION PART:
+%    * STEP 1: Define WHAT TO DO (in structure: "do")
+%    * STEP 2: Define PARAMETERS for all steps (in structure: "params")
+%    * STEP 3: Define PARAMETERS for specific steps (in structure: "params")
+%    * STEP 4: Define SUBJECT SPECIFIC PARAMETERS (in structure: "subj_params")
+%
+% EXECUTION PART:
+%    * STEP 1: do.sortDicoms 
+%              Sort dicoms into folders: --> using function: sortDicomsIntoFolders.m
+%    * STEP 2: do.excludeRuns 
+%              Exclude runs in a subject-based manner (e.g., exclude run 3 from s001, and run 5 from s006).
+%              Individualised definition is necessary (using structure "subj_params")
+%    * STEP 3: do.rawDataDirs
+%              Creates 'rawdata' directories.
+%    * STEP 4: do.datasetJson
+%              Creates a dataset_description.json file
+%    * STEP 5: do.scanTsv
+%              Creates a scan TSV file (IMPORTANT: it includes ONLY the non-excluded
+%              functional scans from STEP 2). Individualised definition is necessary
+%              (using structure "subj_params")
+%    * STEP 6: do.dicom2nifti
+%              Convert dicoms to niftis: --> using function: DICOMconversion_BIDS
+%              Uses either dcm2niix OR SPM. If using SPM dummy images are
+%              discarded. If using dcm2niix dummy images are NOT discarded.
+%              Importantly: individual dummy images are NOT supported (for
+%              now).
+%
+%    * STEP 7: do.funcJson
+%              Create functional json files AFTER dicom2nifti conversion
+%    * STEP 8: do.fmapJson
+%              Modify fieldmap json files AFTER dicom2nifti conversion
+%    * EXTRA STEPS HAPPEN HERE
+%    * STEP 9: do.save
+%              Save workspace, and diary. (final step)
+%
+% EXTRAS STEPS: Add "ignore" files.
+%    *  do.addBidsIgnore  = true; % Add a BIDS-ignore file
+%    *  do.addFprepIgnore = true; % Add an fprepIgnore file
+%
+% USAGE NOTES:
+%    * Main steps are STEP 1 (sort dicom into folders) and STEP 6
+%    (transform dicoms into niftis).
+%    * Several steps REQUIRE specific parameters, make sure these are
+%    defined adequately. 
+%    * The subj_params ARE needed for: STEP 2 (run exclusion) and STEP 5 (scan-tsv
+%    creation)
+%
+%    * Make sure not include more than one T1w (e.g. TMS-localizer sequences)
+%      into the 'anat' folder --> as fmriprep will use all of them (averaging)
+%    * PEPOLAR images for fieldmap correction should be called: fmap_pepolar
+%
 %
 % TO-DO:
 %    * Optimize the Sort Dicoms into folders script.
 %    * Finish writing this script, save values, etc.
 %    * consider renaming files AFTER moving some folders into the "excluded" file.
 %    * Acquistion of anatomical images NOTE: important for fmriprep ignore file (see below) TO-DO: ignore file is NOT working!
+%    * Consider making the dummy images subject and/or run dependent (as
+%    sometimes differences CAN occur).
 %
-% USAGE NOTES:
-%    * Make sure not include more than one T1w (e.g. TMS-localizer sequences)
-%      into the 'anat' folder --> as fmriprep will use all of them (averaging)
+%
+% Original PRG: 11/2021
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 
@@ -31,17 +96,20 @@
 
 %% Define which steps to do in this script
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Main steps:
 do.sortDicoms     = true; % Sort dicoms into folder in "sourcedata" (see function: sortDicomsIntoFolders.m)
 do.excludeRuns    = true; % Put some functional runs into an "exclude" folder in sourcedata. Name of remaining runs stays the same
 do.rawdataDirs    = true; % Create and pre-allocate new directories in "rawData"
-do.datasetJson    = true;  % Create the dataset_description.json file (see function: BIDS_dataset_json.m);
-do.scansTsv       = true;  % Create scans TSV file.
-do.dicom2nifti    = true;  % Transform Dicoms into Niftis (from sourcedata to rawdata, see function: DICOMconversion_BIDS.m)
-do.funcJson       = true;  % Add task and discarded images to func json files
-do.fmapJson       = true;  % Add an "IntendedFor" field in the fieldmap Json file.
-do.addBidsIgnore  = true;  % Add a BIDS-ignore file
-do.addFprepIgnore = true;  % Add an fprepIgnore file
-do.save           = true;  % Save the Workspace and command outputs in at rootDir/code/Dicom2Bids
+do.datasetJson    = true; % Create the dataset_description.json file (see function: BIDS_dataset_json.m);
+do.scansTsv       = true; % Create scans TSV file.
+do.dicom2nifti    = true; % Transform Dicoms into Niftis (from sourcedata to rawdata, see function: DICOMconversion_BIDS.m)
+do.funcJson       = true; % Add task and discarded images to func json files
+do.fmapJson       = true; % Add an "IntendedFor" field in the fieldmap Json file.
+do.save           = true; % Save the Workspace and command outputs in at rootDir/code/Dicom2Bids
+
+% Extras:
+do.addBidsIgnore  = true; % Add a BIDS-ignore file
+do.addFprepIgnore = true; % Add an fprepIgnore file
 
 if do.save
     % Everything is going to be save in a "log"-structure with sub-structures
@@ -56,7 +124,7 @@ disp('Running the following steps'); disp(do);
 
 %% Define parameters for all scripts
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-subjects = [5,8,11]; %#ok<*NBRAK> % Array with subject number (for Dicoms AND niftis). If EMPTY: if will get ALL subjects with param.prefix and RENAME them to sub-001, sub-002, etc!
+subjects = [7,8,11]; %#ok<*NBRAK> % Array with subject number (for Dicoms AND niftis). If EMPTY: if will get ALL subjects with param.prefix and RENAME them to sub-001, sub-002, etc!
 n_subjects = length(subjects);
 
 % Prefix of subjects in sourcedata folder
@@ -73,6 +141,7 @@ params.funcDir    = 'func';     % functional. DEFAULT: 'func'
 params.funcrefDir = 'func_ref'; % functional SB reference scans (MB sequences). DEFAULT: 'func_ref'
 params.fmapDir    = 'fmap';     % fieldmaps. DEFAULT: 'fmap'
 params.excludeDir = 'excluded'; % excluded functional runs. DEFAULT: 'excluded'
+params.saveDir    = 'Dicom2Bids'; % rootDir/Code/Dicom2Bids;
 
 % Other specificiations
 params.formatSpec    = '%03i';    % Format specification for the subject (e.g., 'sub-001').
@@ -91,7 +160,7 @@ if isempty(subjects) && params.runQuestions
     end
 end
 
-%% Define parameters for some scripts (what to do, etc)
+%% Define parameters for some steps (what to do in which function, etc)
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Specific parameters for the sort Dicoms into Folders
 if do.sortDicoms
@@ -150,8 +219,10 @@ params.subNames    = subNames;
 
 %% Define subject specific parameters
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Important: this defintions are REQUIRED for STEP 2 (exclude runs) and 
+% STEP 5 (create tsv scan file).
 hdr         = {'filename', 'run' 'task'}; % header
-tasks       = {'TMSlow','TMShigh'}; % which task
+tasks       = {'TMSlow','TMShigh'};       % which task
 
 % Enter values per subject of interest
 ss = 1; % subject index 1 from "subjects" array.
@@ -172,6 +243,7 @@ subj_params(ss).runs        = {{'1'},{'2'},{'3'},{'4'},{'5'},{'6'}}'; % which fu
 subj_params(ss).run2exclude = 7; % which runs to exclude (will be put into a separate folder
 subj_params(ss).tasks       = {tasks{1},tasks{2},tasks{1},tasks{2},tasks{1},tasks{2}}'; % Low-high-low-high-low-high
 
+if length(subj_params) ~= n_subjects; error('Wrong number of subjects specified/wrong number of subjects defined'); end
 
 for ss = 1:n_subjects
     for i = 1:length(subj_params(ss).runs)
@@ -194,7 +266,7 @@ end
 % EXECUTE                                                                 %
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-%% SOURCEDATA: SORT DICOMS INTO FOLDERS
+%% STEP 1: SOURCEDATA: SORT DICOMS INTO FOLDERS
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Sort dicoms into folders (with folder names). Needs a sequenceInfo.mat
 % file to know what sequence name belongs to what folder, number of scans
@@ -203,7 +275,7 @@ if do.sortDicoms
     sortDicomsIntoFolders(params.prefix, [], params);
 end
 
-%% PUT SOME RUNS INTO EXCLUDE FOLDER IN SOURCEDATA
+%% STEP 2: PUT SOME RUNS INTO EXCLUDE FOLDER IN SOURCEDATA
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % IMPORTANT: this will put some runs into an extra folder called for
 % exclusion. This information needs to be given via the subj_params
@@ -237,7 +309,7 @@ if do.excludeRuns
 end
 
 
-%% RAWDATA: Make BIDS-conform folders in rawdata directory for all subjects
+%% STEP 3: RAWDATA: Make BIDS-conform folders in rawdata directory for all subjects
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Create the rawdata folders (for niftis) (unprocessed nifti data folders)
 % using spm_mkdir (anatomical, functional folders and fieldmap folders)
@@ -253,7 +325,7 @@ if do.rawdataDirs
     %spm_mkdir(params.rawDir, params.rawSubNames, params.anatDir, params.anatModalities);
 end
 
-%% DATASET JSON: Make json dataset
+%% STEP 4: DATASET JSON: Make json dataset
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Create the dataset_description.json file
 if do.datasetJson
@@ -263,10 +335,11 @@ if do.datasetJson
     BIDS_dataset_json(params.rawDir);
 end
 
-%% SCAN TSV: Make *_scans.tsv for all subjects
+%% STEP 5: SCAN TSV: Make *_scans.tsv for all subjects
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Create *_scans.tsv file for your functional runs with task name and run for each subject
-% The file contains run numbers the corresponding task
+% The file contains run numbers the corresponding task.
+% IMPORTANT: it will ONLY include non-excluded runs! (from STEP 2)
 % Define tsv columns
 if do.scansTsv
     disp('===========================');
@@ -283,7 +356,7 @@ if do.scansTsv
     end
 end
 
-%% CONVERT: DICOM TO NIFTI
+%% STEP 6: CONVERT: DICOM TO NIFTI
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Transform from dicom to niftis using the function DICOMconversion_BIDS
 % Use either 'SPM' or 'dcm2niix'
@@ -294,7 +367,7 @@ if do.dicom2nifti
     DICOMconversion_BIDS(rawSubNames, subNames, 'params', params, 'funcConversion', params.funcConversion, 'anatConversion', params.anatConversion, 'fieldmapConversion', params.fieldmapConversion)
 end
 
-%% FUNCTIONAL JSON: Add task and discarded images to func json files
+%% STEP 7: FUNCTIONAL JSON: Add task and discarded images to func json files
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % After generating the functional json files: we want to add the TaskName
 % to them. Instead of using the defined task names defined before, we will
@@ -333,7 +406,7 @@ if do.funcJson
     end
 end
 
-%% FMAP JSON: Add "IntendedFor" and B0FieldIdentifier metadata for the Fieldmap scans.
+%% STEP 8: FMAP JSON: Add "IntendedFor" and B0FieldIdentifier metadata for the Fieldmap scans.
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Add an "IntendedFor" field in the fieldmap Json file.
 % NOTE: Implemented for gre_fieldmap (in which one has 3 images).
@@ -343,7 +416,6 @@ if do.fmapJson
     disp('===========================');
     disp('MODIFING FIELDMAP JSON FILES');
     disp('===========================');
-    
     for i = 1:length(subjects) % for-loop across subjects
         
         % Intended For Functional scans:
@@ -375,7 +447,7 @@ if do.fmapJson
 end
 
 
-%% CREATE A BIDSIGNORE FILE:
+%% EXTRA 1: CREATE A BIDSIGNORE FILE:
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Ignore specific folders (such as tmsloc) by creating a .bidsignore file
 if do.addBidsIgnore
@@ -389,7 +461,7 @@ if do.addBidsIgnore
 end
 
 
-%% FMRI-PREP-IGNORE JSON: Generate a json file to ignore certain images in fmri prep
+%% EXTRA 2: FMRI-PREP-IGNORE JSON: Generate a json file to ignore certain images in fmri prep
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 if do.addFprepIgnore
     disp('===========================');
@@ -401,24 +473,25 @@ if do.addFprepIgnore
     jsonwrite([params.rawDir '/fmriprep_BIDS_filter.json'], BIDs_filter, 'prettyPrint', true);
 end
 
-%% FMRI-PREP: Now run fmri-prep using Docker
+%% EXTRA 3: FMRI-PREP: Now run fmri-prep using Docker
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%TO-DO
+%TO-DO: include fmri-prep here or not?
 
 
-%% SAVE: parameters and further infos.
+%% STEP 9: SAVE: parameters and further infos.
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 if do.save
     log.params = params;
     log.params.subjects = subjects;
     log.do   = do;
     log.date = date;
-    log.savefolder = fullfile(params.rootDir, 'Code','Dicom2Bids');
+    log.savefolder = fullfile(params.rootDir, 'Code',params.saveDir);
+    
+    if ~isfolder(log.savefolder); spm_mkdir(log.savefolder); end
+    
     save([log.savefolder '/' log.savefile], 'log');
     diary off
 end
-
-
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%

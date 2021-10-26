@@ -10,22 +10,30 @@ function sortDicomsIntoFolders( prefix, log, params )
 % images per sequence.
 %
 % IMPORTANT:
-%   The number of images must be correct. Every folder containing more or
+%   The number of images must be correct. Every non-Anatomical folder containing more or
 %   less images are stored in an 'error' folder.
-%   Thus, it is recommended to create a "sequenceInfo" mat file with the structure
+%   Thus, it is recommended to create a "sequenceInfo" mat file BEFOREHAND with the structure
 %   "log" containing the fields: sequenceDescriptions, sequenceNames,
 %   sequenceScanNrs and sequenceModality (important for anatomical scans!)
+%  
+%    The location of the "sequenceInfo.mat" file CAN be provided with the
+%    "params" structure. Alternatively one can provide the "log" structure
+%    directly when calling this function.
 %
-% IMPORTANT: About fieldmaps and localizer runs
-%   Per convention name fieldmaps sequences "fmap" and localizer sequences
+%
+% IMPORTANT: About fieldmaps and localizer runs!
+%   Per convention please name fieldmaps sequences "fmap" and localizer sequences
 %   "loc". These are NOT going to be separated into different
 %   "runs-folders". Any sequence name CONTAINING either "loc" of "fmap"
-%   will be put together!
+%   will be put together! (NOT sequenceDescriptions as read from DICOM headers, BUT sequenceNames)
 %
 % Example of "log" structure in sequenceInfo:
-%       log.sequenceDescriptions{2}: 'localizer 64-channel'
-%       log.sequenceNames{2}: 'loc'
-%       log.sequenceScanNrs{2}: 13
+%       log.sequenceDescriptions{2}: 'localizer 64-channel' --> from hdr
+%       log.sequenceNames{2}: 'loc' --> name given.
+%       log.sequenceScanNrs{2}: [13, 3] --> nr. of images.
+%       log.sequenceModality{2}: 'T1w' --> modality of scan (e.g. 'BOLD',
+%       'T1w', 'T2w', etc.)
+%
 %
 % INPUT:
 %   prefix (optional): string with prefix of your subjects

@@ -1,5 +1,5 @@
 function DICOMconversion_BIDS( varargin )
-%% DICOM to NIFTI conversion using spm12
+%% DICOM to NIFTI conversion using spm12 OR dcm2niix (DEFAULT)
 %  This script will convert sorted DICOM folders in "sourcedata" into a
 %  BIDS-conform "rawdata" with data in NIFTI-format. The conversion can
 %  either be done with SPM OR dcm2niix (default and suggested).
@@ -10,23 +10,30 @@ function DICOMconversion_BIDS( varargin )
 %
 %       rawSubNames (required): cell containing the wanted subjects name (for rawdata folder, e.g. "sub-001")
 %       subNames (required): cell containing the subjects you want to
-%               convert FROM (from sourcedata folder, e.g. "PW001")
+%                            convert FROM (from sourcedata folder, e.g. "PW001")
 %       softwareFlag (optional): 'dcm2niix' OR 'SPM' (dcm2niix)
 %       funcConversion (optional): 'true' or 'false' (true)
 %       fieldmapConversion (optional): 'true' or 'false' (true)
+%
 %       params (optional): parameter-defining structure with fields:
 %           rootDir (optional) ELSE get dir using "uigetdir"
-%           sourceDir and rawDir (optional) ELSE use defaults 'sourcedata'
-%                    and 'rawdata'
-%           funcDir (optional) ELSE use default: func
-%           anatDir (optional) ELSE use default: anat
-%           fmapDir (optional) ELSE use default: fmap
+%           sourceDir and rawDir (optional) ELSE use defaults 'sourcedata' and 'rawdata'
+%           funcDir (optional) ELSE use default: "func"
+%           funcrefDir (optional) ELSE use default: "func_ref"
+%           anatDir (optional) ELSE use default: "anat"
+%           fmapDir (optional) ELSE use default: "fmap"
 %           anatModalities, anatAcquisition, anatDir (optional)
 %                    ELSE use defaults: T1w, T2w, T2star, with 1 mm
 %           formatSpecRun (optional) ELSE use default: '%.02i' (for runs, e.g., run-01)
+%           SBref2nii (optional) include single band reference or not 
+%                   (for advanced sequences with parallel imaging) ELSE use
+%                   default: false.
 %           extensions (optional) ELSE use default: 'ima' and 'IMA'
+%           runQuestions (optional) ELSE use default: true
+%
 %
 %       SOFTWARE SPECIFIC PARAMETERS:
+%
 %           FOR dcm2niix:
 %               path2exe (optional) ELSE get with 'uigetdir' OR press 0 to
 %                   use defaults (depending on operation system)
@@ -34,7 +41,9 @@ function DICOMconversion_BIDS( varargin )
 %               nDummies (optional - no default) ELSE ask for number of
 %               dummies (in func scans) and ask for confirmation.
 %
-%  OUTPUT: rawdata folder(s) in BIDS-format
+%
+%
+%  OUTPUT: rawdata folder(s) in BIDS structure, 4D niftis and Json side-cars
 %         sub-<SUBJ_NR> (e.g., sub-001)
 %                --> func
 %                       --> sub-001-task_<TASKNAME>_run-<RUN_NR>_bold.json
@@ -50,6 +59,10 @@ function DICOMconversion_BIDS( varargin )
 %                ...
 %        ...
 %
+%  IMPORTANT SPM:
+%            SEVERAL FUNCTIONALITIES NOT IMPLEMENTED/TESTED (e.g.,
+%            inclusion of single band references, fieldmap conversion,
+%            etc.)
 %
 %  IMPORTANT FUNCIONAL SCANS:
 %            NO DUMMIES ARE EXTRACTED WHEN USING DCM2NIIX!
@@ -57,7 +70,8 @@ function DICOMconversion_BIDS( varargin )
 %
 %  IMPORTANT FIELDMAPS:
 %            PEPOLAR fmap sequences should include that in the name for a
-%            correct convertion into a BIDS-compatible format.
+%            correct convertion into a BIDS-compatible format
+%            (fmap_pepolar)!
 %
 % VP 10/2020 (adapted from JBs preprocessingSPM12)
 % PG 10/2021 (modified, included parsing, dcm2niix, etc)
@@ -66,6 +80,7 @@ function DICOMconversion_BIDS( varargin )
 %         * create a log file to save warning and error messages
 %         * implement flag "overwrite", delete old files and do new
 %         conversion? E.g. using unix(mv ...);
+%         * Decide if delete or keep SPM.
 
 %% SETTINGS
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -152,14 +167,12 @@ if isfield(params, 'formatSpecRun'); formatSpecRun = params.formatSpecRun; else;
 end
 
 % extension to convert
-if isfield(params, 'extensions'); extensions = params.extensions; else
-    extensions = {'**.IMA','**.ima'}; % extension you care about
+if isfield(params, 'extensions'); extensions = params.extensions; else; extensions = {'**.IMA','**.ima'}; % extension you care about
     fprintf(['====EXTENSIONS: No extensions specified. Using default extensions: .IMA and .ima \n\n']);
 end
 
 % run some specific checks?
-if isfield(params, 'runQuestions'); runQuestions = params.runQuestions; else
-    runQuestions = true; % extension you care about
+if isfield(params, 'runQuestions'); runQuestions = params.runQuestions; else; runQuestions = true; % ask questions or not
     fprintf(['====RUNNING CHECKS: Missing. Default: true. Running checks \n\n']);
 end
 
@@ -192,7 +205,7 @@ if do.funcConversion == 1
         nDummies = params.nDummies;
         disp(['====nDUMMIES. If running SPM, using specified values of: ' num2str(nDummies)]);
         if runQuestions; wait4confirmation = true;
-            while wait4confirmation; tmp = input('IS THIS CORRECT? Dummy volumes will be discarded! (y/n) [n]:','s');
+            while wait4confirmation; tmp = input('IS THIS CORRECT (for all subjects)? Dummy volumes will be discarded if using SPM! (y/n) [n]:','s');
                 if strcmp(tmp,'y'); wait4confirmation = false; end
             end
         end
