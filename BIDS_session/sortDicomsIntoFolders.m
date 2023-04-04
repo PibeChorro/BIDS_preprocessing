@@ -1,4 +1,4 @@
-function sortDicomsIntoFolders( prefix, log, params )
+function sortDicomsIntoFolders(prefix, logs, params)
 %% Sort Dicoms into Folders
 % The following script sorts MRI output data (*.IMA/*.ima) into folders
 % in "sourcedata" dir, while generating a folder for each sequence
@@ -13,13 +13,12 @@ function sortDicomsIntoFolders( prefix, log, params )
 %   The number of images must be correct. Every non-Anatomical folder containing more or
 %   less images are stored in an 'error' folder.
 %   Thus, it is recommended to create a "sequenceInfo" mat file BEFOREHAND with the structure
-%   "log" containing the fields: sequenceDescriptions, sequenceNames,
+%   "logs" containing the fields: sequenceDescriptions, sequenceNames,
 %   sequenceScanNrs and sequenceModality (important for anatomical scans!)
 %  
 %    The location of the "sequenceInfo.mat" file CAN be provided with the
-%    "params" structure. Alternatively one can provide the "log" structure
+%    "params" structure. Alternatively one can provide the "logs" structure
 %    directly when calling this function.
-%
 %
 % IMPORTANT: About fieldmaps and localizer runs!
 %   Per convention please name fieldmaps sequences "fmap" and localizer sequences
@@ -27,17 +26,16 @@ function sortDicomsIntoFolders( prefix, log, params )
 %   "runs-folders". Any sequence name CONTAINING either "loc" of "fmap"
 %   will be put together! (NOT sequenceDescriptions as read from DICOM headers, BUT sequenceNames)
 %
-% Example of "log" structure in sequenceInfo:
-%       log.sequenceDescriptions{2}: 'localizer 64-channel' --> from hdr
-%       log.sequenceNames{2}: 'loc' --> name given.
-%       log.sequenceScanNrs{2}: [13, 3] --> nr. of images.
-%       log.sequenceModality{2}: 'T1w' --> modality of scan (e.g. 'BOLD',
+% Example of "logs" structure in sequenceInfo:
+%       logs.sequenceDescriptions{2}: 'localizer 64-channel' --> from hdr
+%       logs.sequenceNames{2}: 'loc' --> name given.
+%       logs.sequenceScanNrs{2}: [13, 3] --> nr. of images.
+%       logs.sequenceModality{2}: 'T1w' --> modality of scan (e.g. 'BOLD',
 %       'T1w', 'T2w', etc.)
-%
 %
 % INPUT:
 %   prefix (optional): string with prefix of your subjects
-%   log (optional): structure with sequence information. ELSE: try to load,
+%   logs (optional): structure with sequence information. ELSE: try to load,
 %           or get sequence info from user.
 %   params (optional): structure with fields
 %           rootDir: root directory (project directory)
@@ -47,7 +45,7 @@ function sortDicomsIntoFolders( prefix, log, params )
 %           extentions: dicom extentions to look for (*.ima and *.IMA)
 %
 % EXAMPLE USAGE:
-%   sortDicomsIntoFolders('subPrefix','s', log, params)
+%   sortDicomsIntoFolders('subPrefix','s', logs, params)
 %
 % SUGGESTION:
 %   Run 1 subject, save the sequenceInfo file and then re-run with the rest
@@ -59,13 +57,16 @@ function sortDicomsIntoFolders( prefix, log, params )
 %
 % In case you want to "unsort" a Subject (e.g. for debugging this script),
 % here an useful snippet:
-% files = dir(pwd);
-% for tmpdir = 1:length(files)
-%    try
-%        movefile(string(fullfile(files(tmpdir).name,'*.IMA')),files(tmpdir).folder);
-%    catch
-%    end
-% end
+%
+%
+% TODO: SKIP PARTICIPANT IF ALREADY DONE! PRG
+files = dir(pwd);
+for tmpdir = 1:length(files)
+    try
+        movefile(string(fullfile(files(tmpdir).name,'*.IMA')),files(tmpdir).folder);
+    catch
+    end
+end
 
 %% SETTINGS
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -75,7 +76,6 @@ if (nargin < 1)
     help sortDicomsIntoFolders
     return
 end
-
 
 fprintf('\n====SORTING DICOMS INTO FOLDERS====\n');
 
@@ -106,6 +106,12 @@ if isfield(params, 'sourceDir'); sourceDir = params.sourceDir; else
 end
 if sourceDir == 0; error('Error: no folder was selected'); end
 
+% Get/enter sesDir
+if isfield(params, 'sesDirs'); sesDirs = params.sesDirs; else 
+    sesDirs = {'ses-01'};
+    fprintf('====SESSION DIR: Missing. Using a default session of: ses-01)\n\n');
+end
+
 % Make modalities dirs?
 if isfield(params, 'mkModalityDirs'); mkModalityDirs = params.mkModalityDirs; else
     fprintf('====Make Modality Dirs: Missing. Using no modality dirs (default).')
@@ -114,33 +120,40 @@ end
 
 % Structure containing information about sequences (create/load)
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% Check if LOG is provided and if it has the necessary fields.
+% Check if *logs* is provided and if it has the necessary fields.
 % ELSE: make a list for all series descriptions (e.g. myFuncSequence, MB_MPI_dwiSequence)
 % and save it in a .mat file (called 'sequenceInfo'). In case you already used this script on a
 % subset of your data try to load the saved .mat file
 
-if ~isfield(log, 'sequenceDescriptions') || ~isfield(log, 'sequenceNames') || ~isfield(log, 'sequenceScanNrs') || ~isfield(log, 'sequenceModality')
-    
-    % Check if sequenceInfo name is provided, else use default name.
-    if isfield(params, 'dir2sequenceInfo'); sequenceInfoName = params.dir2sequenceInfo; else
-        fprintf('====No dir to sequenceInfo provided. Using default: sequenceInfo.mat')
-        sequenceInfoName = 'sequenceInfo.mat';
-    end
-    
-    % Check if there already exists a sequence description mat file
-    if exist([sequenceInfoName],'file')
-        disp('Loading sequenceInfo.mat from directory');
-        load(sequenceInfoName,'log');
-    else
-        disp('No sequenceInfo! Values will need to be entered manually');
-        log.sequenceDescriptions    = {}; % e.g. "AFNI_..."
-        log.sequenceNames           = {}; % e.g. "anat"
-        log.sequenceScanNrs         = {}; % e.g. "192"
-        log.sequenceModality        = {}; % e.g. "T1w" (ONLY IMPORTANT FOR ANATOMICAL SCANS)
-    end
+if isempty(logs)
+        % Check if sequenceInfo name is provided, else use default name.
+        if isfield(params, 'dir2sequenceInfo'); sequenceInfoName = params.dir2sequenceInfo; else
+            fprintf('====No dir to sequenceInfo provided. Using default: sequenceInfo.mat')
+            sequenceInfoName = 'sequenceInfo.mat';
+        end
+
+        % Check if there already exists a sequence description mat file
+        if exist([sequenceInfoName],'file')
+            disp('Loading sequenceInfo.mat from directory');
+            load(sequenceInfoName,'logs');
+        else
+            disp('No sequenceInfo! Values will need to be entered manually');
+            for tmpses = 1:length(sesDirs)
+                logs.ses(tmpses).sequenceDescriptions    = {}; % e.g. "AFNI_..."
+                logs.ses(tmpses).sequenceNames           = {}; % e.g. "anat"
+                logs.ses(tmpses).sequenceScanNrs         = {}; % e.g. "192"
+                logs.ses(tmpses).sequenceModality        = {}; % e.g. "T1w" (ONLY IMPORTANT FOR ANATOMICAL SCANS)
+            end
+        end    
 else
     disp('SequenceInfo provided when running function');
+    if ~isfield(logs,'ses')
+        error('Session field missing from logs structure');
+    elseif ~isfield(logs.ses, 'sequenceDescriptions') || ~isfield(logs.ses, 'sequenceNames') || ~isfield(logs.ses, 'sequenceScanNrs') || ~isfield(logs.ses, 'sequenceModality')
+        error('Missing information from logs structure')
+    end
 end
+
 
 % Get subjects in dir
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -169,7 +182,7 @@ elseif areHidden % check if the prefix was correctly set and no hidden files are
     error('It looks like you did not select a valid prefix, because a hidden folder was selected.')
 end
 
-% Extra specficiations
+% Extra specifications
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % format specification for RUNS
 if isfield(params, 'formatSpecRun'); formatSpecRun = params.formatSpecRun; else; formatSpecRun  = '%02i'; % specify how you name your RUNS
@@ -188,8 +201,11 @@ end
 
 for f = 1:length(sub) % Outer loop for the subjects
     fprintf('Sorting subject: %s \n', sub(f).name); % display.
-    subjectDir = fullfile (sourceDir,sub(f).name);
     
+    for tmpses = 1:length(sesDirs) % Loop for the session
+    
+        subjectDir = fullfile (sourceDir,sub(f).name, sesDirs{tmpses}); % specific for session
+
     %% STEP 1: Move images from separate sequences in different folders
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
     % fill an array with all relevent data files
@@ -242,7 +258,7 @@ for f = 1:length(sub) % Outer loop for the subjects
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
     
     if steps2sort(2) == true
-        subDirs = dir(subjectDir); % get the folders you just made within one subject
+        subDirs = dir(subjectDir); % get the folders you just made within one subject (and session)
         fprintf('\n Step 2:....Renaming folders to "sequenceNames". Total number of folders: %s \n', num2str(length(subDirs))); % display.
         % Iterate over all folders and if it is a numeric (from the
         % sequencing before, check the seriesDescription in the header of
@@ -259,7 +275,7 @@ for f = 1:length(sub) % Outer loop for the subjects
                 
                 firstDicom        = spm_dicom_headers(dicoms(1,:));  % get header
                 seriesDescription = firstDicom{1}.SeriesDescription; % read out the 'SeriesDescription' field
-                sequenceIndex     = find (strcmp(log.sequenceDescriptions, seriesDescription));
+                sequenceIndex     = find (strcmp(logs.ses(tmpses).sequenceDescriptions, seriesDescription));
                 
                 % If there is a new sequence, we add it to our list
                 if isempty(sequenceIndex)
@@ -267,26 +283,26 @@ for f = 1:length(sub) % Outer loop for the subjects
                         'Please assign the correct data type to the new series description.\n'...
                         'Use meaningful names, ideally in line with BIDS naming,\n'...
                         'e.g. anat, func, dwi, etc.']);
-                    log.sequenceDescriptions{end+1} = seriesDescription;
-                    log.sequenceNames{end+1}        = input (['\n' log.sequenceDescriptions{end} ': '],'s');
-                    imageNumber                     = input(['\n\nPlease asign a number of scans to this sequence.\n\n'...
+                    logs.ses(tmpses).sequenceDescriptions{end+1} = seriesDescription;
+                    logs.ses(tmpses).sequenceNames{end+1}        = input (['\n' logs.ses(tmpses).sequenceDescriptions{end} ': '],'s');
+                    imageNumber                      = input(['\n\nPlease asign a number of scans to this sequence.\n\n'...
                         '!!!!!!IMPORTANT!!!!!\n\n'...
                         'Make sure you asign the correct number of scans (for EPI). Every folder containing more or less scans will be stored as "error-run-XX"\n\n'...
                         'If more than one number of scans are possible for a specific sequence, separate the numbers by a SPACE.\n'],'s');
-                    log.sequenceScanNrs{end+1}      = str2num(imageNumber); %#ok<*ST2NM>
-                    sequenceIndex                   = length(log.sequenceNames);
-                    log.sequenceModality{end+1}     = input(['\n\n Please assign the modality (i.e. BOLD, T1w, T2w or T2star): '],'s');
+                    logs.ses(tmpses).sequenceScanNrs{end+1}      = str2num(imageNumber); %#ok<*ST2NM>
+                    sequenceIndex                    = length(logs.ses(tmpses).sequenceNames);
+                    logs.ses(tmpses).sequenceModality{end+1}     = input(['\n\n Please assign the modality (i.e. BOLD, T1w, T2w or T2star): '],'s');
                 end
                 
-                if ~isfolder(fullfile(subjectDir,log.sequenceNames{sequenceIndex}))
-                    mkdir (fullfile(subjectDir,log.sequenceNames{sequenceIndex}));
+                if ~isfolder(fullfile(subjectDir,logs.ses(tmpses).sequenceNames{sequenceIndex}))
+                    mkdir (fullfile(subjectDir,logs.ses(tmpses).sequenceNames{sequenceIndex}));
                 end
                 
                 % Check for anatomical scans: built in heuristic that if an "anat" or "struct" folder exists just rename the folder to anat
                 % NOT controlling for the number of images.
-                if (contains(log.sequenceNames{sequenceIndex},'anat')||contains(log.sequenceNames{sequenceIndex},'struct')) % if anatomical
+                if (contains(logs.ses(tmpses).sequenceNames{sequenceIndex},'anat')||contains(logs.ses(tmpses).sequenceNames{sequenceIndex},'struct')) % if anatomical
                     if mkModalityDirs % make modality specific dirs?
-                        movefile(string(fullfile(currentDir,'*')), fullfile(subjectDir,'anat', log.sequenceModality{sequenceIndex}));
+                        movefile(string(fullfile(currentDir,'*')), fullfile(subjectDir,'anat', logs.ses(tmpses).sequenceModality{sequenceIndex}));
                         rmdir(fullfile(currentDir));
                     else
                         movefile(string(fullfile(currentDir,'*')), fullfile(subjectDir,'anat'));
@@ -294,7 +310,7 @@ for f = 1:length(sub) % Outer loop for the subjects
                     end
                 else % move files to the corresponding folders
                     movefile(string(fullfile(currentDir)),...
-                        fullfile(subjectDir,log.sequenceNames{sequenceIndex}));
+                        fullfile(subjectDir,logs.ses(tmpses).sequenceNames{sequenceIndex}));
                 end
             end
         end
@@ -310,12 +326,12 @@ for f = 1:length(sub) % Outer loop for the subjects
     % TO-DO: wenn die falsche Anzahl an scans in der folder gefunden werden dann gibts ein Problem.
     if steps2sort(3) == true
         fprintf('\n Step 3:....Changing sub-folder names to run-<runNr> or collapsing folders \n'); % display.
-        for i = 1:length(log.sequenceNames) % go throw the different sequence types.
+        for i = 1:length(logs.ses(tmpses).sequenceNames) % go throw the different sequence types.
             % get all folders within the sequencefolder
-            subDirs    = dir(fullfile(subjectDir,log.sequenceNames{i}));
+            subDirs    = dir(fullfile(subjectDir,logs.ses(tmpses).sequenceNames{i}));
             runCounter = 1; % set a counter that determines the run number
             
-            if contains(log.sequenceNames{i},"fmap") || contains(log.sequenceNames{i},"loc") % fieldmaps and localizers are thrown together
+            if contains(logs.ses(tmpses).sequenceNames{i},"fmap") || contains(logs.ses(tmpses).sequenceNames{i},"loc") % fieldmaps and localizers are thrown together
                 together = true;
             else
                 together = false;
@@ -324,7 +340,7 @@ for f = 1:length(sub) % Outer loop for the subjects
             for sd = 1:length(subDirs)
                 [status,~]     = str2num(subDirs(sd).name); % Here we avoid hidden folders like '..'
                 if status
-                    currentDir = fullfile(subjectDir, log.sequenceNames{i}, subDirs(sd).name);
+                    currentDir = fullfile(subjectDir, logs.ses(tmpses).sequenceNames{i}, subDirs(sd).name);
                     
                     % Count all dicoms in the folder
                     dicoms = [];
@@ -337,14 +353,14 @@ for f = 1:length(sub) % Outer loop for the subjects
                     % the number asigned above, the folder accepted as a 'run'
                     % folder
                     if together % put files into the sequenceNames folder; ignore the wanted number of scans
-                        movefile(string(fullfile(currentDir, '*.IMA')), fullfile(subjectDir,log.sequenceNames{i}));
+                        movefile(string(fullfile(currentDir, '*.IMA')), fullfile(subjectDir,logs.ses(tmpses).sequenceNames{i}));
                         rmdir(fullfile(currentDir));
                     else
-                        if (ismember(nrOfScans, log.sequenceScanNrs{i}))
-                            movefile(string(currentDir), fullfile(subjectDir,log.sequenceNames{i},['run-' num2str(runCounter,formatSpecRun)]))
+                        if (ismember(nrOfScans, logs.ses(tmpses).sequenceScanNrs{i}))
+                            movefile(string(currentDir), fullfile(subjectDir,logs.ses(tmpses).sequenceNames{i},['run-' num2str(runCounter,formatSpecRun)]))
                             runCounter = runCounter+1;
                         else
-                            movefile(string(currentDir), fullfile(subjectDir,log.sequenceNames{i},['error-run-' num2str(runCounter,formatSpecRun)]))
+                            movefile(string(currentDir), fullfile(subjectDir,logs.ses(tmpses).sequenceNames{i},['error-run-' num2str(runCounter,formatSpecRun)]))
                             runCounter = runCounter+1;
                         end
                     end
@@ -354,12 +370,13 @@ for f = 1:length(sub) % Outer loop for the subjects
     else
         fprintf('\n Skipping step 3 \n'); %
     end
+    end % session is complete
     fprintf('....Subject: %s  is complete\n', sub(f).name); % display.
 end %for-loop across subjects
 
 fprintf('\n Sorting Dicoms into folders complete! \n'); %
 % Save the log in case you want to rerun the script on more subjects
 % but don't want to reenter all the sequence information
-save(sequenceInfoName,'log')
+save(sequenceInfoName,'logs')
 
 end

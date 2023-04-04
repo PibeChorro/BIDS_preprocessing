@@ -463,7 +463,7 @@ for ss = 1:length(rawSubNames) % For all subjects do each ...
     end % do.funConversion
     
     
-    %% STEP 3: Fieldmap converstion
+    %% STEP 3: Fieldmap conversion
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
     % Note: only (for now) dcm2niix implemented.
     % Note: it will rename in BIDS conform only for: magnitude + phase diff
