@@ -166,85 +166,6 @@ for ss = 1:length(subNames) % For all subjects do each ...
     spm_mkdir (smoothedDir,             subNames{ss}, 'func');
     
     %% STARTING PREPROCESSING
-    
-    %% Slice Time Correction
-    % slice time correction for every run individually because slice timing
-    % differs slightly
-    if do.sliceTimeCorr
-        currentDir          = fullfile(realignedDir, subNames{ss}, 'func');
-        folderContent       = dir(fullfile(currentDir, ['u' subNames{ss} '_' taskName '_' 'run*'])); 
-        DICOMfolderContent  = dir(fullfile(sourceDir, DICOMsubNames{ss}, 'func', 'run*'));
-        nruns               = length(folderContent);
-        fprintf('SLICE TIME CORRECTION\n\n')
-        for run=1:nruns % for number of runs
-            % load a dicom header that contains information needed for analysis
-            dicomDir           = fullfile(sourceDir,DICOMsubNames{ss},'func',DICOMfolderContent(run).name);
-            % select all dicom files from the current run
-            dicomFiles = [];
-            for ext = 1:length(DICOMsExtensions)
-                dicomFiles = [dicomFiles; spm_select('FPList', dicomDir, DICOMsExtensions{ext})];
-            end
-            if isempty(dicomFiles)
-                % TODO: check what is going on here!
-                warning('NO *ima nor *IMA  FILES SELECTED FOR SLICE TIME CORRECTION - PROBABLY WRONG PATH/FILENAME: process stopped. Press Enter to continue.')
-                disp(['CURRENT PATH:  ' dicomDir]);
-                pause;
-            end
-
-            % select only one from them
-            dicomFile   = dicomFiles(end,:); % Get one image, e.g. the last one
-            fprintf('=> determining acquisition parameters from: \n %s \n', dicomFile);
-
-            hdr                         = spm_dicom_headers(dicomFile);
-            sequence.NumSlices          = hdr{1}.Private_0019_100a;         % Number of slices
-            sequence.TR                 = hdr{1}.RepetitionTime/1000;       % TR in SECONDS
-            [~, sequence.sliceOrder]    = sort(hdr{1}.Private_0019_1029);   % slice order
-            sequence.sliceTstamps       = hdr{1}.Private_0019_1029;         % slice times in milliseconds
-            
-            % select files to slice time correct
-            niftiFiles = spm_select('ExtFPList', currentDir, folderContent(run).name, Inf); % AFTER REALINGMENT!
-            
-            % find reference slice (the one in the middle) - if using
-            % median one has two values --> select one of them using "min"
-            tmp = abs(sequence.sliceTstamps - median(sequence.sliceTstamps));   % find the slice time in the middle! (in ms)
-            [~, refInd] = min(tmp);
-            
-            % sanity check TR.
-            if max(sequence.sliceTstamps)/1000 > sequence.TR 
-                error('Found a slice timestamp that exceeds our TR! Make sure you did not select the first image in you run folder to assess slice timing!')
-            end
-            
-            % sanity check Number of slices
-            if length(sequence.sliceTstamps) ~= sequence.NumSlices
-                error('The slice time stamps found in the DICOM header do not correspond to Nslices!');
-            end
-            
-            % sanity check Middle slice. if the slice you found is one of the middle slices.
-            if logical(refInd ~= sequence.sliceOrder(sequence.NumSlices/2)) && logical(refInd ~= sequence.sliceOrder(sequence.NumSlices/2+1))
-                error('Problem finding your middle slice! It doesnt correspond to the NumSlices/2 nor (NumSlices/2)+1')
-            end
-            
-            % generate matlabbatch for slice time correction with everthing
-            matlabbatch{1}.spm.temporal.st.scans      = {cellstr(niftiFiles)}; % nifti files
-            matlabbatch{1}.spm.temporal.st.nslices    = sequence.NumSlices; % nr. slices
-            matlabbatch{1}.spm.temporal.st.tr         = sequence.TR; % TR
-            matlabbatch{1}.spm.temporal.st.ta         = 0; % will be ignored because we use slice_times (from SPM: "if the next two items (slice order & reference slice) are entered in milliseconds, this entry will not be used and can be set to 0")
-            matlabbatch{1}.spm.temporal.st.so         = sequence.sliceTstamps;  % slice time stamps (in ms)
-            matlabbatch{1}.spm.temporal.st.refslice   = sequence.sliceTstamps( refInd ); % reference time stamp (in ms), the one in the middle
-            matlabbatch{1}.spm.temporal.st.prefix     = 'a';
-            
-            spm('defaults', 'FMRI');
-            spm_jobman('run', matlabbatch);
-            clearvars matlabbatch
-            
-        end
-        [success,message] = movefile(string(fullfile(realignedDir, subNames{ss}, 'func', 'a*')), ...
-            fullfile(sliceTimeCorrectedDir, subNames{ss}, 'func'));
-        if ~success
-            warning(message)
-        end
-    end
-    
     %% Realignment: Estimate & unwarp
     if do.realignment
         
@@ -376,8 +297,85 @@ for ss = 1:length(subNames) % For all subjects do each ...
         % TODO: create JSON file containing processing information and
         % store it BIDS conform
     end
+    
+    %% Slice Time Correction
+    % slice time correction for every run individually because slice timing
+    % differs slightly
+    if do.sliceTimeCorr
+        currentDir          = fullfile(realignedDir, subNames{ss}, 'func');
+        folderContent       = dir(fullfile(currentDir, ['u' subNames{ss} '_' taskName '_' 'run*'])); 
+        DICOMfolderContent  = dir(fullfile(sourceDir, DICOMsubNames{ss}, 'func', 'run*'));
+        nruns               = length(folderContent);
+        fprintf('SLICE TIME CORRECTION\n\n')
+        for run=1:nruns % for number of runs
+            % load a dicom header that contains information needed for analysis
+            dicomDir           = fullfile(sourceDir,DICOMsubNames{ss},'func',DICOMfolderContent(run).name);
+            % select all dicom files from the current run
+            dicomFiles = [];
+            for ext = 1:length(DICOMsExtensions)
+                dicomFiles = [dicomFiles; spm_select('FPList', dicomDir, DICOMsExtensions{ext})];
+            end
+            if isempty(dicomFiles)
+                % TODO: check what is going on here!
+                warning('NO *ima nor *IMA  FILES SELECTED FOR SLICE TIME CORRECTION - PROBABLY WRONG PATH/FILENAME: process stopped. Press Enter to continue.')
+                disp(['CURRENT PATH:  ' dicomDir]);
+                pause;
+            end
 
+            % select only one from them
+            dicomFile   = dicomFiles(end,:); % Get one image, e.g. the last one
+            fprintf('=> determining acquisition parameters from: \n %s \n', dicomFile);
 
+            hdr                         = spm_dicom_headers(dicomFile);
+            sequence.NumSlices          = hdr{1}.Private_0019_100a;         % Number of slices
+            sequence.TR                 = hdr{1}.RepetitionTime/1000;       % TR in SECONDS
+            [~, sequence.sliceOrder]    = sort(hdr{1}.Private_0019_1029);   % slice order
+            sequence.sliceTstamps       = hdr{1}.Private_0019_1029;         % slice times in milliseconds
+            
+            % select files to slice time correct
+            niftiFiles = spm_select('ExtFPList', currentDir, folderContent(run).name, Inf); % AFTER REALINGMENT!
+            
+            % find reference slice (the one in the middle) - if using
+            % median one has two values --> select one of them using "min"
+            tmp = abs(sequence.sliceTstamps - median(sequence.sliceTstamps));   % find the slice time in the middle! (in ms)
+            [~, refInd] = min(tmp);
+            
+            % sanity check TR.
+            if max(sequence.sliceTstamps)/1000 > sequence.TR 
+                error('Found a slice timestamp that exceeds our TR! Make sure you did not select the first image in you run folder to assess slice timing!')
+            end
+            
+            % sanity check Number of slices
+            if length(sequence.sliceTstamps) ~= sequence.NumSlices
+                error('The slice time stamps found in the DICOM header do not correspond to Nslices!');
+            end
+            
+            % sanity check Middle slice. if the slice you found is one of the middle slices.
+            if logical(refInd ~= sequence.sliceOrder(sequence.NumSlices/2)) && logical(refInd ~= sequence.sliceOrder(sequence.NumSlices/2+1))
+                error('Problem finding your middle slice! It doesnt correspond to the NumSlices/2 nor (NumSlices/2)+1')
+            end
+            
+            % generate matlabbatch for slice time correction with everthing
+            matlabbatch{1}.spm.temporal.st.scans      = {cellstr(niftiFiles)}; % nifti files
+            matlabbatch{1}.spm.temporal.st.nslices    = sequence.NumSlices; % nr. slices
+            matlabbatch{1}.spm.temporal.st.tr         = sequence.TR; % TR
+            matlabbatch{1}.spm.temporal.st.ta         = 0; % will be ignored because we use slice_times (from SPM: "if the next two items (slice order & reference slice) are entered in milliseconds, this entry will not be used and can be set to 0")
+            matlabbatch{1}.spm.temporal.st.so         = sequence.sliceTstamps;  % slice time stamps (in ms)
+            matlabbatch{1}.spm.temporal.st.refslice   = sequence.sliceTstamps( refInd ); % reference time stamp (in ms), the one in the middle
+            matlabbatch{1}.spm.temporal.st.prefix     = 'a';
+            
+            spm('defaults', 'FMRI');
+            spm_jobman('run', matlabbatch);
+            clearvars matlabbatch
+            
+        end
+        [success,message] = movefile(string(fullfile(realignedDir, subNames{ss}, 'func', 'a*')), ...
+            fullfile(sliceTimeCorrectedDir, subNames{ss}, 'func'));
+        if ~success
+            warning(message)
+        end
+    end
+    
     %% Co-registration
     if do.coregistration
         % copy the slice time corrected images in the coregistration folder

@@ -11,6 +11,8 @@ function DICOMconversion_BIDS( varargin )
 %       rawSubNames (required): cell containing the wanted subjects name (for rawdata folder, e.g. "sub-001")
 %       subNames (required): cell containing the subjects you want to
 %                            convert FROM (from sourcedata folder, e.g. "PW001")
+%       sesIdx (required): cell containing the requested sessions to run
+%       (from params.sesDirs)
 %       softwareFlag (optional): 'dcm2niix' OR 'SPM' (dcm2niix)
 %       funcConversion (optional): 'true' or 'false' (true)
 %       fieldmapConversion (optional): 'true' or 'false' (true)
@@ -46,16 +48,16 @@ function DICOMconversion_BIDS( varargin )
 %  OUTPUT: rawdata folder(s) in BIDS structure, 4D niftis and Json side-cars
 %         sub-<SUBJ_NR> (e.g., sub-001)
 %                --> func
-%                       --> sub-001-task_<TASKNAME>_run-<RUN_NR>_bold.json
-%                       --> sub-001-task_<TASKNAME>_run-<RUN_NR>_bold.nii.gz
+%                       --> sub-001_ses-<SES_NR>_task_<TASKNAME>_run-<RUN_NR>_bold.json
+%                       --> sub-001_ses-<SES_NR>_task_<TASKNAME>_run-<RUN_NR>_bold.nii.gz
 %                       ...
 %                --> anat
-%                       --> sub-001_acq->ACQUISITION_LABEL>_<MODALITY>.json
-%                       --> sub-001_acq->ACQUISITION_LABEL>_<MODALITY>.gz
+%                       --> sub-001_ses-<SES_NR>_acq->ACQUISITION_LABEL>_<MODALITY>.json
+%                       --> sub-001_ses-<SES_NR>_acq->ACQUISITION_LABEL>_<MODALITY>.gz
 %                       ...
 %                --> fmap
-%                       --> sub-001_<FIELDMAP_LABEL>.json
-%                       --> sub-001_<FIELDMAP_LABEL>.nii.gz
+%                       --> sub-001_ses-<SES_NR>_<FIELDMAP_LABEL>.json
+%                       --> sub-001_ses-<SES_NR>_<FIELDMAP_LABEL>.nii.gz
 %                ...
 %        ...
 %
@@ -95,7 +97,8 @@ end
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 p = inputParser;
 addRequired(p, 'rawSubNames', @(x) iscell(x)); % cell containing the subjects you want to convert.
-addRequired(p, 'subNames', @(x) iscell(x)); % cell containing the subjects you want to convert.
+addRequired(p, 'subNames', @(x) iscell(x));    % cell containing the subjects you want to convert.
+addRequired(p, 'sesIdx', @(x) iscell(x));      % cell containing subject specific sessions to convert.
 addParameter(p, 'softwareFlag', 'dcm2niix', @(x) ischar(x)); % Select: 'SPM' or 'dcm2niix' % Dicom transformation using SPM or dcm2niix
 addParameter(p, 'funcConversion', true, @(x) islogical(x)); % do functional conversions
 addParameter(p, 'anatConversion', true, @(x) islogical(x)); % do anatomical conversions
@@ -108,6 +111,7 @@ do = p.Results;
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 rawSubNames = do.rawSubNames;
 subNames    = do.subNames;
+sesIdx      = do.sesIdx;
 
 %% Get values or set defaults from params
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -137,7 +141,7 @@ if isfield(params, 'sesDir')
     sesDirs = params.sesDirs;
 else
     fprintf(['====SESSION DIRS: No session dir specified. Using defaults name: ses-01 \n\n']);
-    sesDirs = fullfile(rootDir, 'ses-01');  % sourcedata
+    sesDirs = {'ses-01'};  % sourcedata
 end
 
 if isfield(params, 'funcDir'); funcDir = params.funcDir; else; funcDir = 'func';
@@ -158,10 +162,10 @@ if isfield(params, 'anatModalities') && isfield(params, 'anatAcquisition') && is
     anatDirs            = params.anatDirs;
     anatAcquisition     = params.anatAcquisition;
 else
-    fprintf(['====ANATMODALITIES & ACQUISITION & DIRS: No anatModalities/acquisition/dirs specified. Using default: anat, T1w and 1 mm.\n\n']);
-    anatModalities      = {'T1w'};
-    anatDirs            = {'anat'};
-    anatAcquisition     = {'1mm'};
+    fprintf(['====ANATMODALITIES & ACQUISITION & DIRS: No anatModalities/acquisition/dirs specified. Using default: anat, T1w and 1 mm for the first session.\n\n']);
+    anatModalities      = {{'T1w'}};
+    anatDirs            = {{'anat'}};
+    anatAcquisition     = {{'1mm'}};
 end
 
 % include SBreference scan or not?
@@ -234,8 +238,9 @@ end
 
 %% Start conversion
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-for ss = 1:length(rawSubNames) % For all subjects do each ...
-    for ses = 1:length(sesDirs)
+for ss = 1:length(rawSubNames)   % For all subjects do each ...
+    for ses1 = 1:length(sesIdx)
+        ses  = sesIdx{ss}(ses1); % Get subj-specific session id to use
         sourceSubDir       = fullfile(sourceDir,subNames{ss},sesDirs{ses});  % dicoms, session specific
         sourceSubFuncDir   = fullfile(sourceSubDir,funcDir);    % functional dicoms Dirs
         sourceSubFuncRefDir= fullfile(sourceSubDir,funcrefDir); % functional single band reference dicoms Dirs for MB sequences
@@ -245,19 +250,19 @@ for ss = 1:length(rawSubNames) % For all subjects do each ...
         %% STEP 1: Conversion from DICOM to NIfTI of ANATOMICAL image
         %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
         if do.anatConversion
-            for mod = 1:length(anatModalities)
+            for mod = 1:length(anatModalities{ses})
                 try
                     % Without any specific folder for anatomical modalities in source and in rawdata:
-                    currDir = fullfile(sourceSubDir, anatDirs{mod}); % sourcedata dir for anat modality
-                    destDir = fullfile(rawSubDir, anatDirs{mod});    % rawdata dir for anat modality
+                    currDir = fullfile(sourceSubDir, anatDirs{ses}{mod}); % sourcedata dir for anat modality
+                    destDir = fullfile(rawSubDir, anatDirs{ses}{mod});    % rawdata dir for anat modality
 
                     % Uncomment if sourcedata has specific modalities! Saving without any specific folder for anatomical modalities in rawdata:
-                    %currDir = fullfile(sourceSubDir,anatDir, anatModalitiesDirs{mod}); % sourcedata dir for anat modality
+                    %currDir = fullfile(sourceSubDir,anatDir, anatModalitiesDirs{ses}{mod}); % sourcedata dir for anat modality
                     %destDir = fullfile(rawSubDir, anatDir);   % rawdata dir for anat modality
 
                     % Uncomment for specific subfolder for each anatomical modality in rawdata:
-                    % currDir = fullfile(sourceSubDir,anatDir, anatModalities{mod}); % sourcedata dir for anat modality
-                    % destDir = fullfile(rawSubDir, anatDir, anatModalities{mod});   % rawdata dir for anat modality
+                    % currDir = fullfile(sourceSubDir,anatDir, anatModalities{ses}{mod}); % sourcedata dir for anat modality
+                    % destDir = fullfile(rawSubDir, anatDir, anatModalities{ses}{mod});   % rawdata dir for anat modality
 
                     folderContent = dir(fullfile(currDir,'run*')); % check if you have different runs, these will be put together in the same modality folder
                     if isempty(folderContent) % no runs in this modality, set folderContent to 1
@@ -292,10 +297,10 @@ for ss = 1:length(rawSubNames) % For all subjects do each ...
 
                             elseif strcmp(do.softwareFlag,'dcm2niix')
                                 if isnumeric(folderContent) % in case there was only one anat image in this modality
-                                    str4dcm2niix = sprintf([fullfile(path2exe, 'dcm2niix'), ' -b y -v 0 -z y -o', ' %s', ' -f', ' %s', ' %s'],destDir, ['/' rawSubNames{ss} '_' sesDirs{ses} '_acq-' anatAcquisition{mod} '_' anatModalities{mod}], tmpDir);
+                                    str4dcm2niix = sprintf([fullfile(path2exe, 'dcm2niix'), ' -b y -v 0 -z y -o', ' %s', ' -f', ' %s', ' %s'],destDir, ['/' rawSubNames{ss} '_' sesDirs{ses} '_acq-' anatAcquisition{ses}{mod} '_' anatModalities{ses}{mod}], tmpDir);
                                     unix(str4dcm2niix);
                                 else % in case there are more than one run in this modality
-                                    str4dcm2niix = sprintf([fullfile(path2exe, 'dcm2niix'), ' -b y -v 0 -z y -o', ' %s', ' -f', ' %s', ' %s'],destDir, ['/' rawSubNames{ss} '_' sesDirs{ses} '_acq-' anatAcquisition{mod} '_run-' num2str(i,formatSpecRun) '_' anatModalities{mod}], tmpDir);
+                                    str4dcm2niix = sprintf([fullfile(path2exe, 'dcm2niix'), ' -b y -v 0 -z y -o', ' %s', ' -f', ' %s', ' %s'],destDir, ['/' rawSubNames{ss} '_' sesDirs{ses} '_acq-' anatAcquisition{ses}{mod} '_run-' num2str(i,formatSpecRun) '_' anatModalities{ses}{mod}], tmpDir);
                                     unix(str4dcm2niix);
                                 end
                             end % software
@@ -305,11 +310,11 @@ for ss = 1:length(rawSubNames) % For all subjects do each ...
                     if strcmp(do.softwareFlag,'SPM') % change the names in case you use SPM
                         if folderContent == 1
                             anatImg     = spm_select('FPList',destDir,'.nii');
-                            [stat, mes] = movefile(anatImg, fullfile(destDir,[rawSubNames{ss} '_' sesDirs{ses} '_acq-' anatAcquisition{mod} '_' anatModalities{mod} '.nii']));
+                            [stat, mes] = movefile(anatImg, fullfile(destDir,[rawSubNames{ss} '_' sesDirs{ses} '_acq-' anatAcquisition{ses}{mod} '_' anatModalities{ses}{mod} '.nii']));
                         else
                             anatImg = spm_select('FPList',destDir,'.nii');
                             for j = 1:length(anatImg)
-                                [stat, mes] = movefile(anatImg(j,:), fullfile(destDir,[rawSubNames{ss} '_' sesDirs{ses} '_acq-' anatAcquisition{mod} '_run-' num2str(j,formatSpecRun) '_' anatModalities{mod} '.nii']));
+                                [stat, mes] = movefile(anatImg(j,:), fullfile(destDir,[rawSubNames{ss} '_' sesDirs{ses} '_acq-' anatAcquisition{ses}{mod} '_run-' num2str(j,formatSpecRun) '_' anatModalities{ses}{mod} '.nii']));
                             end
                         end
                         if ~stat
@@ -321,7 +326,7 @@ for ss = 1:length(rawSubNames) % For all subjects do each ...
                         % after creating the anatomical NIfTIs we create its
                         % corresponding .json file. Note we manually create only
                         % ONE json file per file per modality.
-                        BIDS_anat_json(destDir, dirfiles(1,:),[rawSubNames{ss} '_' sesDirs{ses} '_acq-' anatAcquisition{mod} '_' anatModalities{mod} '.nii.gz']);
+                        BIDS_anat_json(destDir, dirfiles(1,:),[rawSubNames{ss} '_' sesDirs{ses} '_acq-' anatAcquisition{ses}{mod} '_' anatModalities{ses}{mod} '.nii.gz']);
                     end
 
                 catch ME
@@ -339,10 +344,10 @@ for ss = 1:length(rawSubNames) % For all subjects do each ...
         if do.funcConversion
 
             %% Read TSV file, get task names, runs and number of images
-            if isfile(fullfile(rawSubDir,[rawSubNames{ss} '_scans.tsv']))
-                movefile(fullfile(rawSubDir,[rawSubNames{ss} '_scans.tsv']),fullfile(rawSubDir,[rawSubNames{ss} '_scans.txt']),'f');
-                [tmpTSV]= readtable(fullfile(rawSubDir,[rawSubNames{ss} '_scans.txt']));
-                movefile(fullfile(rawSubDir,[rawSubNames{ss} '_scans.txt']),fullfile(rawSubDir,[rawSubNames{ss} '_scans.tsv']),'f');
+            if isfile(fullfile(rawSubDir,[rawSubNames{ss} '_' sesDirs{ses} '_scans.tsv']))
+                movefile(fullfile(rawSubDir,[rawSubNames{ss} '_' sesDirs{ses} '_scans.tsv']),fullfile(rawSubDir,[rawSubNames{ss} '_' sesDirs{ses} '_scans.txt']),'f');
+                [tmpTSV]= readtable(fullfile(rawSubDir,[rawSubNames{ss} '_' sesDirs{ses} '_scans.txt']));
+                movefile(fullfile(rawSubDir,[rawSubNames{ss} '_' sesDirs{ses}  '_scans.txt']),fullfile(rawSubDir,[rawSubNames{ss} '_' sesDirs{ses} '_scans.tsv']),'f');
             else
                 error('No *_scans.tsv file found');
             end
@@ -371,7 +376,6 @@ for ss = 1:length(rawSubNames) % For all subjects do each ...
                         % get the directory of the current run in your 'sourcedata'
                         currDir = fullfile(sourceSubFuncDir, folderContent(i).name);
 
-
                         % fill an array with all DICOM files
                         dirfiles = [];
                         for ext = 1:length(extensions)
@@ -381,9 +385,9 @@ for ss = 1:length(rawSubNames) % For all subjects do each ...
                         % If single band references are wanted: extract them
                         % too. Note: we assume they have exactly the same
                         % number of runs as the BOLD runs and that they are
-                        % match! Works only with dcm2nii
+                        % matched! Works only with dcm2nii
                         if SBref2nii == true
-                            currDir_ref = fullfile(sourceSubFuncRefDir, folderContent(i).name);
+                            currDir_ref  = fullfile(sourceSubFuncRefDir, folderContent(i).name);
                             dirfiles_ref = [];
                             for ext = 1:length(extensions)
                                 dirfiles_ref = [dirfiles_ref; spm_select('FPList', currDir_ref, extensions{ext})]; %#ok<*AGROW>
@@ -397,8 +401,9 @@ for ss = 1:length(rawSubNames) % For all subjects do each ...
                         if strcmp(do.softwareFlag,'SPM')
                             niftinames = fullfile (rawSubFuncDir, [rawSubNames{ss} '_task-' tmpTaskName '_run-' num2str(i,formatSpecRun) '_bold.nii']);
                             warning("DUMMIES ARE DISCARDED WHEN USING SPM.")
+
                             % specify spm options
-                            matlabbatch{1}.spm.util.import.dicom.data               = cellstr(dirfiles(nDummies+1:end,:));
+                            matlabbatch{1}.spm.util.import.dicom.data               = cellstr(dirfiles(nDummies+1:end,:)); % select all images BUT not the dummies
                             matlabbatch{1}.spm.util.import.dicom.root               = 'flat';
                             matlabbatch{1}.spm.util.import.dicom.outdir             = cellstr(rawSubFuncDir);
                             matlabbatch{1}.spm.util.import.dicom.protfilter         = '.*';
@@ -441,7 +446,7 @@ for ss = 1:length(rawSubNames) % For all subjects do each ...
 
                             % Note: Extraction of single band reference occurs
                             % in the "func_ref" folder in the same run-<runNr> as
-                            % the "func" runs.
+                            % the "func" runs. Thus, they need to match.
                             if SBref2nii == true
                                 niftinames = [rawSubNames{ss} '_task-' tmpTaskName '_' folderContent(i).name '_sbref'];
                                 disp('Single band reference is extracted');
@@ -483,10 +488,10 @@ for ss = 1:length(rawSubNames) % For all subjects do each ...
                 dirfiles = [dirfiles; spm_select('FPList', currDir, extensions{ext})];
             end
 
-            if isempty(dirfiles)
-                error('FOLDER CONTENT IS EMPTY - PROBABLY WRONG PATH.')
-            else
-                try
+            try
+                if isempty(dirfiles)
+                    warning('FOLDER CONTENT FOR FIELDMAP IS EMPTY - PROBABLY WRONG PATH OR MISSING FMAP.'):
+                else
                     fprintf('=> importing fieldmap to %s\n', destDir); % it should have only one folder (for both grep_fieldmap and different phase)
 
                     if strcmp(do.softwareFlag,'dcm2niix') % only dcm2niix implemented
@@ -524,12 +529,11 @@ for ss = 1:length(rawSubNames) % For all subjects do each ...
                             end
                         end
                     end
-
-                catch ME
-                    warning('Fieldmap dicom in %s could not be converted.\n',currDir)
-                    fprintf('Error in function %s() at line %d.\n\nError Message:\n%s', ...
-                        ME.stack(1).name, ME.stack(1).line, ME.message);
                 end
+            catch ME
+                warning('Fieldmap dicom in %s could not be converted.\n',currDir)
+                fprintf('Error in function %s() at line %d.\n\nError Message:\n%s', ...
+                    ME.stack(1).name, ME.stack(1).line, ME.message);
             end
         end % Fieldmap Convertion
     end % For all subjects

@@ -90,7 +90,7 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %% Clean up and check for dependencies
-clear do logs params subj_params;
+clear do log params subj_params;
 
 if which('spm'); disp('SPM is in path'); else; error('SPM is not in path'); end
 if which('jsonread'); disp('JSONio is in path'); else; error('JSONio is not in path'); end
@@ -104,9 +104,9 @@ do.sortDicoms     = false; % Sort dicoms into folder in "sourcedata" (see functi
 do.excludeRuns    = false;  % Put some functional runs into an "exclude" folder in sourcedata. Name of remaining runs stays the same
 do.rawdataDirs    = false;  % Create and pre-allocate new directories in "rawData"
 do.datasetJson    = false;  % Create the dataset_description.json file (see function: BIDS_dataset_json.m);
-do.scansTsv       = false;  % Create scans TSV file.
-do.dicom2nifti    = false;  % Transform Dicoms into Niftis (from sourcedata to rawdata, see function: DICOMconversion_BIDS.m)
-do.funcJson       = true; % Add task and discarded images to func json files
+do.scansTsv       = true;  % Create scans TSV file.
+do.dicom2nifti    = true;  % Transform Dicoms into Niftis (from sourcedata to rawdata, see function: DICOMconversion_BIDS.m)
+do.funcJson       = false; % Add task and discarded images to func json files
 do.fmapJson       = false; % Add an "IntendedFor" field in the fieldmap Json file.
 do.save           = false; % Save the Workspace and command outputs in at rootDir/code/Dicom2Bids
 
@@ -121,10 +121,10 @@ params.saveDir    = 'Dicom2Bids'; % rootDir/Code/Dicom2Bids;
 
 % Now display what to do, start the diary if wanted.
 if do.save
-    % Everything is going to be save in a "logs"-structure with sub-structures
+    % Everything is going to be save in a "log"-structure with sub-structures
     % consisting of "params", "subj_params" and "do".
-    logs.savefile      = ['BIDS_conversion_workspace_' date]; %#ok<DATE>
-    diary(fullfile(params.rootDir, 'Code', params.saveDir, logs.savefile));
+    log.savefile      = ['BIDS_conversion_workspace_' date]; %#ok<DATE>
+    diary(fullfile(params.rootDir, 'Code', params.saveDir, log.savefile));
     diary on
 end
 disp('Running the following steps'); disp(do);
@@ -264,9 +264,9 @@ try
 catch ME
     disp('Preparation ended with errors');
     if do.save
-        logs.error = ME;
-        logs.savefolder = fullfile(params.rootDir, 'Code', params.saveDir);
-        save([logs.savefolder '/' logs.savefile '_error'], 'logs');
+        log.error = ME;
+        log.savefolder = fullfile(params.rootDir, 'Code', params.saveDir);
+        save([log.savefolder '/' log.savefile '_error'], 'log');
         diary off
         disp('Saving...');
     end
@@ -416,25 +416,22 @@ try % To execute steps, else catch ME
         params.NumberOfVolumesDiscardedByUser = 0; % important: are you discarding dummies before including files in the dataset? If so, how many?
 
         for i = 1:length(subjects) % for-loop across subjects
-            for sesid = 1:length(subj_params(ss).ses2run)
-                sesid2 = subj_params(ss).ses2run(sesid);
-
-                currDir = fullfile(params.rawDir, params.rawSubNames{i}, params.sesDirs{sesid2}, params.funcDir); % directory: rawdata/sub-*
-                tmpjson = dir([currDir '/*.json']);
-                for ii = 1:length(tmpjson) % for-loop across json files in functional folder
-                    tmpstr = regexp(tmpjson(ii).name,'_','split'); % get all elements separated by '_'
-                    tmpstr = regexp(tmpstr{params.positionOfTaskInName},'-','split'); %separate the "task-TASKNAME" in two elements
-                    try
-                        tmpvals = jsonread([tmpjson(ii).folder '/' tmpjson(ii).name]); % read json file
-                        tmpvals.TaskName = tmpstr{2}; % add taskname
-                        tmpvals.NumberOfVolumesDiscardedByUser = params.NumberOfVolumesDiscardedByUser;
-                        jsonwrite([tmpjson(ii).folder '/' tmpjson(ii).name], tmpvals, 'prettyPrint', true) % write json file again.
-                    catch
-                        warning('%s\n%s\n%s\n%s', ...
-                            'Reading/Writing the JSON file seems to have failed.', ...
-                            'Make sure that the following library is in the matlab/octave path:', ...
-                            'https://github.com/gllmflndn/JSONio');
-                    end
+            for 
+            currDir = fullfile(params.rawDir, params.rawSubNames{i}, params.funcDir); % directory: rawdata/sub-*
+            tmpjson = dir([currDir '/*.json']);
+            for ii = 1:length(tmpjson) % for-loop across json files in functional folder
+                tmpstr = regexp(tmpjson(ii).name,'_','split'); % get all elements separated by '_'
+                tmpstr = regexp(tmpstr{params.positionOfTaskInName},'-','split'); %separate the "task-TASKNAME" in two elements
+                try
+                    tmpvals = jsonread([tmpjson(ii).folder '/' tmpjson(ii).name]); % read json file
+                    tmpvals.TaskName = tmpstr{2}; % add taskname
+                    tmpvals.NumberOfVolumesDiscardedByUser = params.NumberOfVolumesDiscardedByUser;
+                    jsonwrite([tmpjson(ii).folder '/' tmpjson(ii).name], tmpvals, 'prettyPrint', true) % write json file again.
+                catch
+                    warning('%s\n%s\n%s\n%s', ...
+                        'Reading/Writing the JSON file seems to have failed.', ...
+                        'Make sure that the following library is in the matlab/octave path:', ...
+                        'https://github.com/gllmflndn/JSONio');
                 end
             end
         end
@@ -451,31 +448,29 @@ try % To execute steps, else catch ME
         disp('MODIFING FIELDMAP JSON FILES');
         disp('===========================');
         for i = 1:length(subjects) % for-loop across subjects
-            for sesid = 1:length(subj_params(ss).ses2run)
-                sesid2 = subj_params(ss).ses2run(sesid);
-                % Intended For Functional scans:
-                funcDir  = fullfile(params.rawDir, params.rawSubNames{i}, params.sesDirs{sesid2}, params.funcDir); % directory: rawdata/sub-*/func
-                tmpfunc  = dir([funcDir '/*.gz']);
-                tmpfunc  = join([repmat(join([params.funcDir "/"],''),length(tmpfunc),1),string({tmpfunc(1:length(tmpfunc)).name}')],''); % add the folder "func/" to the run_names
 
-                currDir = fullfile(params.rawDir, params.rawSubNames{i}, params.sesDirs{sesid2}, params.fmapDir); % directory: rawdata/sub-*/fmap
-                tmpjson = dir([currDir '/sub*.json']);
-                if isempty(tmpjson)
-                    warning('\nNo fieldmap found in folder. Skipping step\n');
-                elseif length(tmpjson) ~= 3
-                    warning('\nWrong number of fieldmaps in folder. Skipping step. \n Expected number of fieldmaps: 3 \n Found fieldmaps: %s\n', num2str(length(tmpjson)));
-                else
-                    for ii = 1:length(tmpjson) % for-loop across json files in fieldmap folder
-                        try
-                            tmpvals             = jsonread([tmpjson(ii).folder '/' tmpjson(ii).name]); % read json file
-                            tmpvals.IntendedFor = tmpfunc; % add taskname
-                            jsonwrite([tmpjson(ii).folder '/' tmpjson(ii).name], tmpvals, 'prettyPrint', true) % write json file again.
-                        catch
-                            warning('%s\n%s\n%s\n%s', ...
-                                'Reading/Writing the JSON file seems to have failed.', ...
-                                'Make sure that the following library is in the matlab/octave path:', ...
-                                'https://github.com/gllmflndn/JSONio');
-                        end
+            % Intended For Functional scans:
+            funcDir  = fullfile(params.rawDir, params.rawSubNames{i}, params.funcDir); % directory: rawdata/sub-*/func
+            tmpfunc  = dir([funcDir '/*.gz']);
+            tmpfunc  = join([repmat(join([params.funcDir "/"],''),length(tmpfunc),1),string({tmpfunc(1:length(tmpfunc)).name}')],''); % add the folder "func/" to the run_names
+
+            currDir = fullfile(params.rawDir, params.rawSubNames{i}, params.fmapDir); % directory: rawdata/sub-*/fmap
+            tmpjson = dir([currDir '/sub*.json']);
+            if isempty(tmpjson)
+                warning('\nNo fieldmap found in folder. Skipping step\n');
+            elseif length(tmpjson) ~= 3
+                warning('\nWrong number of fieldmaps in folder. Skipping step. \n Expected number of fieldmaps: 3 \n Found fieldmaps: %s\n', num2str(length(tmpjson)));
+            else
+                for ii = 1:length(tmpjson) % for-loop across json files in fieldmap folder
+                    try
+                        tmpvals             = jsonread([tmpjson(ii).folder '/' tmpjson(ii).name]); % read json file
+                        tmpvals.IntendedFor = tmpfunc; % add taskname
+                        jsonwrite([tmpjson(ii).folder '/' tmpjson(ii).name], tmpvals, 'prettyPrint', true) % write json file again.
+                    catch
+                        warning('%s\n%s\n%s\n%s', ...
+                            'Reading/Writing the JSON file seems to have failed.', ...
+                            'Make sure that the following library is in the matlab/octave path:', ...
+                            'https://github.com/gllmflndn/JSONio');
                     end
                 end
             end
@@ -517,24 +512,24 @@ try % To execute steps, else catch ME
     %% STEP 9: SAVE: parameters and further infos.
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
     if do.save
-        logs.params = params;
-        logs.params.subjects = subjects;
-        logs.do   = do;
-        logs.date = date;
-        logs.savefolder = fullfile(params.rootDir, 'Code',params.saveDir);
+        log.params = params;
+        log.params.subjects = subjects;
+        log.do   = do;
+        log.date = date;
+        log.savefolder = fullfile(params.rootDir, 'Code',params.saveDir);
 
-        if ~isfolder(logs.savefolder); spm_mkdir(logs.savefolder); end % make dir if necessary
+        if ~isfolder(log.savefolder); spm_mkdir(log.savefolder); end % make dir if necessary
 
-        save([logs.savefolder '/' logs.savefile], 'logs');
+        save([log.savefolder '/' log.savefile], 'log');
         diary off
     end
 
 catch ME
     disp('Execution ended with errors');
     if do.save
-        logs.error = ME;
-        logs.savefolder = fullfile(params.rootDir, 'Code', params.saveDir);
-        save([logs.savefolder '/' logs.savefile '_error'], 'logs');
+        log.error = ME;
+        log.savefolder = fullfile(params.rootDir, 'Code', params.saveDir);
+        save([log.savefolder '/' log.savefile '_error'], 'log');
         diary off
         disp('Saving...');
     end
