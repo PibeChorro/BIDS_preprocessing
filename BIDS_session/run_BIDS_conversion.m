@@ -104,9 +104,9 @@ do.sortDicoms     = false; % Sort dicoms into folder in "sourcedata" (see functi
 do.excludeRuns    = false;  % Put some functional runs into an "exclude" folder in sourcedata. Name of remaining runs stays the same
 do.rawdataDirs    = false;  % Create and pre-allocate new directories in "rawData"
 do.datasetJson    = false;  % Create the dataset_description.json file (see function: BIDS_dataset_json.m);
-do.scansTsv       = false;  % Create scans TSV file.
+do.scansTsv       = true;  % Create scans TSV file.
 do.dicom2nifti    = false;  % Transform Dicoms into Niftis (from sourcedata to rawdata, see function: DICOMconversion_BIDS.m)
-do.funcJson       = true; % Add task and discarded images to func json files
+do.funcJson       = false; % Add task and discarded images to func json files
 do.fmapJson       = false; % Add an "IntendedFor" field in the fieldmap Json file.
 do.save           = false; % Save the Workspace and command outputs in at rootDir/code/Dicom2Bids
 
@@ -255,7 +255,7 @@ try
             if any(ismember(subj_params(ss).ses(sesid2).run2exclude, tmpruns)); error('Subject %s run inclusion/exclusion definition is not consistent',subj_params(ss).sourcename); end
 
             for i = 1:length(subj_params(ss).ses(sesid2).runs)
-                runs_filenames{i} = [params.funcDir '/' params.rawSubNames{ss} '_' params.sesDirs{sesid2} '_task-' subj_params(ss).ses(sesid2).tasks{i} '_run-' subj_params(ss).ses(sesid2).runs{i}{1} '_bold.nii.gz'];
+                runs_filenames{i} = [params.funcDir '/' params.rawSubNames{ss} '_' params.sesDirs{sesid2} '_task-' subj_params(ss).ses(sesid2).tasks{i} '_run-' sprintf('%03d',str2num(subj_params(ss).ses(sesid2).runs{i}{1})) '_bold.nii.gz'];
             end
             subj_params(ss).ses(sesid2).filename = runs_filenames';
         end

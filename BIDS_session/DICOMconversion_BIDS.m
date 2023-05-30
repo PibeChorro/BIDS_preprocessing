@@ -399,7 +399,7 @@ for ss = 1:length(rawSubNames)   % For all subjects do each ...
                         end
 
                         if strcmp(do.softwareFlag,'SPM')
-                            niftinames = fullfile (rawSubFuncDir, [rawSubNames{ss} '_task-' tmpTaskName '_run-' num2str(i,formatSpecRun) '_bold.nii']);
+                            niftinames = fullfile (rawSubFuncDir, [rawSubNames{ss} '_' sesDirs{ses} '_task-' tmpTaskName '_run-' num2str(i,formatSpecRun) '_bold.nii']);
                             warning("DUMMIES ARE DISCARDED WHEN USING SPM.")
 
                             % specify spm options
@@ -439,7 +439,7 @@ for ss = 1:length(rawSubNames)   % For all subjects do each ...
                         elseif strcmp(do.softwareFlag,'dcm2niix')
                             % Note: Extraction occurs in the parent direction and
                             % without the "run-<runNr>" structure.
-                            niftinames = [rawSubNames{ss} '_task-' tmpTaskName '_' folderContent(i).name '_bold'];
+                            niftinames = [rawSubNames{ss} '_' sesDirs{ses} '_task-' tmpTaskName '_' folderContent(i).name '_bold'];
                             warning('NO DUMMY EXTRACTION PERFORMED WHEN USING DCM2NIIX');
                             str4dcm2niix = sprintf([fullfile(path2exe, 'dcm2niix'),  ' -b y -v 0 -z y -o', ' %s', ' -f', ' %s', ' -c', ' %s', ' %s'], rawSubFuncDir, niftinames, 'Dummy images included', currDir);
                             unix(str4dcm2niix);
@@ -448,7 +448,7 @@ for ss = 1:length(rawSubNames)   % For all subjects do each ...
                             % in the "func_ref" folder in the same run-<runNr> as
                             % the "func" runs. Thus, they need to match.
                             if SBref2nii == true
-                                niftinames = [rawSubNames{ss} '_task-' tmpTaskName '_' folderContent(i).name '_sbref'];
+                                niftinames = [rawSubNames{ss} '_' sesDirs{ses} '_task-' tmpTaskName '_' folderContent(i).name '_sbref'];
                                 disp('Single band reference is extracted');
                                 str4dcm2niix = sprintf([fullfile(path2exe, 'dcm2niix'),  ' -b y -v 0 -z y -o', ' %s', ' -f', ' %s', ' -c', ' %s', ' %s'], rawSubFuncDir, niftinames, 'Dummy images included', currDir_ref);
                                 unix(str4dcm2niix);
@@ -461,7 +461,7 @@ for ss = 1:length(rawSubNames)   % For all subjects do each ...
                             % give the function the directory where to store the
                             % json file and the last dicom directory to read out
                             % necessary information
-                            BIDS_bold_json (rawSubFuncDir,dirfiles(1,:),[rawSubNames{ss} '_task-' tmpTaskName '_bold.json']);
+                            BIDS_bold_json (rawSubFuncDir,dirfiles(1,:),[rawSubNames{ss} '_' sesDirs{ses} '_task-' tmpTaskName '_bold.json']);
                         end
 
                     catch ME
@@ -490,7 +490,7 @@ for ss = 1:length(rawSubNames)   % For all subjects do each ...
 
             try
                 if isempty(dirfiles)
-                    warning('FOLDER CONTENT FOR FIELDMAP IS EMPTY - PROBABLY WRONG PATH OR MISSING FMAP.'):
+                    warning('FOLDER CONTENT FOR FIELDMAP IS EMPTY - PROBABLY WRONG PATH OR MISSING FMAP.');
                 else
                     fprintf('=> importing fieldmap to %s\n', destDir); % it should have only one folder (for both grep_fieldmap and different phase)
 
@@ -509,22 +509,22 @@ for ss = 1:length(rawSubNames)   % For all subjects do each ...
                     if size(fmapImg,1) > 1 % Even with pepolar, we will have a nii and json file.
                         for i = 1:size(fmapImg,1)
                             if contains(fmapImg(i,:),'_e1.nii.gz') % magnitude 1
-                                unix(join(["mv ", string(fmapImg(i,:)), fullfile(destDir,[rawSubNames{ss} '_magnitude1.nii.gz'])]));
+                                unix(join(["mv ", string(fmapImg(i,:)), fullfile(destDir,[rawSubNames{ss} '_' sesDirs{ses} '_magnitude1.nii.gz'])]));
                             elseif contains(fmapImg(i,:),'_e2.nii.gz') % magnitude 2
-                                unix(join(["mv ", string(fmapImg(i,:)), fullfile(destDir,[rawSubNames{ss} '_magnitude2.nii.gz'])]));
+                                unix(join(["mv ", string(fmapImg(i,:)), fullfile(destDir,[rawSubNames{ss} '_' sesDirs{ses} '_magnitude2.nii.gz'])]));
                             elseif contains(fmapImg(i,:),'_ph.nii.gz') % phase difference
-                                unix(join(["mv ", string(fmapImg(i,:)), fullfile(destDir,[rawSubNames{ss} '_phasediff.nii.gz'])]));
+                                unix(join(["mv ", string(fmapImg(i,:)), fullfile(destDir,[rawSubNames{ss} '_' sesDirs{ses} '_phasediff.nii.gz'])]));
                             elseif contains(fmapImg(i,:),'_e1.json') % magnitude 1 json
-                                unix(join(["mv ", string(fmapImg(i,:)), fullfile(destDir,[rawSubNames{ss} '_magnitude1.json'])]));
+                                unix(join(["mv ", string(fmapImg(i,:)), fullfile(destDir,[rawSubNames{ss} '_' sesDirs{ses} '_magnitude1.json'])]));
                             elseif contains(fmapImg(i,:),'_e2.json') % magnitude 2 json
-                                unix(join(["mv ", string(fmapImg(i,:)), fullfile(destDir,[rawSubNames{ss} '_magnitude2.json'])]));
+                                unix(join(["mv ", string(fmapImg(i,:)), fullfile(destDir,[rawSubNames{ss} '_' sesDirs{ses} '_magnitude2.json'])]));
                             elseif contains(fmapImg(i,:),'_ph.json') % phase diff json
-                                unix(join(["mv ", string(fmapImg(i,:)), fullfile(destDir,[rawSubNames{ss} '_phasediff.json'])]));
+                                unix(join(["mv ", string(fmapImg(i,:)), fullfile(destDir,[rawSubNames{ss} '_' sesDirs{ses} '_phasediff.json'])]));
                             elseif contains(fmapImg(i,:),'fmap_pepolar') % collected using inverted phase encoding
                                 if contains(fmapImg(i,:),'.nii.gz') % nifti --> should be called '_epi.nii.gz'
-                                    unix(join(["mv ", string(fmapImg(i,:)), fullfile(destDir,[rawSubNames{ss} 'dir_PA_epi.nii.gz'])]));
+                                    unix(join(["mv ", string(fmapImg(i,:)), fullfile(destDir,[rawSubNames{ss} '_' sesDirs{ses} 'dir_PA_epi.nii.gz'])]));
                                 elseif contains(fmapImg(i,:),'.json') % sidecart json file defining what it is intended for.
-                                    unix(join(["mv ", string(fmapImg(i,:)), fullfile(destDir,[rawSubNames{ss} 'dir_PA_epi.json'])]));
+                                    unix(join(["mv ", string(fmapImg(i,:)), fullfile(destDir,[rawSubNames{ss} '_' sesDirs{ses} 'dir_PA_epi.json'])]));
                                 end
                             end
                         end
