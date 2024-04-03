@@ -12,7 +12,7 @@ function DICOMconversion_BIDS( varargin )
 %       subNames (required): cell containing the subjects you want to
 %                            convert FROM (from sourcedata folder, e.g. "PW001")
 %       sesIdx (required): cell containing the requested sessions to run
-%       (from params.sesDirs)
+%       (from params.sesDirs) --> params.ses2run
 %       softwareFlag (optional): 'dcm2niix' OR 'SPM' (dcm2niix)
 %       funcConversion (optional): 'true' or 'false' (true)
 %       fieldmapConversion (optional): 'true' or 'false' (true)
@@ -137,7 +137,7 @@ else
 end
 
 % session
-if isfield(params, 'sesDir')
+if isfield(params, 'sesDirs')
     sesDirs = params.sesDirs;
 else
     fprintf(['====SESSION DIRS: No session dir specified. Using defaults name: ses-01 \n\n']);
@@ -239,7 +239,7 @@ end
 %% Start conversion
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 for ss = 1:length(rawSubNames)   % For all subjects do each ...
-    for ses1 = 1:length(sesIdx)
+    for ses1 = 1:length(sesIdx{ss})
         ses  = sesIdx{ss}(ses1); % Get subj-specific session id to use
         sourceSubDir       = fullfile(sourceDir,subNames{ss},sesDirs{ses});  % dicoms, session specific
         sourceSubFuncDir   = fullfile(sourceSubDir,funcDir);    % functional dicoms Dirs
