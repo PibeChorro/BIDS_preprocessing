@@ -114,14 +114,14 @@ do.addFprepIgnore = true; % Add an fprepIgnore file
 
 %% Define main directories (rootDir and save Dir)
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-params.rootDir    = '/Volumes/bartels_data/pgrassi/TMS-fMRI-WM2'; %'/Volumes/bartels_data/TMS-WM-on/WM2_fMRI'; % Directory of the project. '/Volumes/DATA2/BIDS_test';
+params.rootDir    = '/Volumes/bartels_data/TMS-WM-on/WM2_fMRI'; % Directory of the project. '/Volumes/DATA2/BIDS_test';
 params.saveDir    = 'Dicom2Bids'; % rootDir/code/Dicom2Bids;
 
 % Now display what to do, start the diary if wanted.
 if do.save
     % Everything is going to be save in a "logs"-structure with sub-structures
     % consisting of "params", "subj_params" and "do".
-    logs.savefile      = ['BIDS_conversion_workspace_' date ,'.txt'];
+    logs.savefile      = ['BIDS_conversion_workspace_' date];
     if ~isfolder(fullfile(params.rootDir, 'Code', params.saveDir))
         mkdir(fullfile(params.rootDir, 'Code', params.saveDir));
     end
