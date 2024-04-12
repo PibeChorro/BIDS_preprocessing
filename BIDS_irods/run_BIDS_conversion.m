@@ -103,10 +103,10 @@ do.rawdataDirs    = true;  % Create and pre-allocate new directories in "rawData
 do.scansTsv       = true;  % Create scans TSV file.
 do.loadSeq        = true;  % load sequenceInfo or create a new one.
 do.sortNiftis     = true;  % Sort niftis into folders in "rawdata" (see function: sortNiftisIntoRaw.m)
-do.datasetJson    = true; % Create the dataset_description.json file (see function: BIDS_dataset_json.m);
-do.funcJson       = true; % Add task and discarded images to func json files
+do.datasetJson    = true;  % Create the dataset_description.json file (see function: BIDS_dataset_json.m);
+do.funcJson       = true;  % Add task and discarded images to func json files
 do.fmapJson       = true;  % Add an "IntendedFor" field in the fieldmap Json file.
-do.save           = true; % Save the Workspace and command outputs in at rootDir/code/Dicom2Bids
+do.save           = true;  % Save the Workspace and command outputs in at rootDir/code/Dicom2Bids
 
 % Extras:
 do.addBidsIgnore  = true; % Add a BIDS-ignore file
@@ -133,7 +133,7 @@ disp('Running the following steps'); disp(do);
 %% Preparation STEP 2: Define parameters for all scripts
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 try
-    subjects = [3,4,5]; %#ok<*NBRAK> % Array with subject number (for Dicoms AND niftis). If EMPTY: if will get ALL subjects with param.prefix and RENAME them to sub-001, sub-002, etc!
+    subjects = [6,7]; %#ok<*NBRAK> % Array with subject number (for Dicoms AND niftis). If EMPTY: if will get ALL subjects with param.prefix and RENAME them to sub-001, sub-002, etc!
     n_subjects = length(subjects);
 
     % Prefix of subjects in sourcedata folder
@@ -151,7 +151,7 @@ try
     params.funcrefDir = 'func_ref'; % functional SB reference scans (MB sequences). DEFAULT: 'func_ref'
     params.fmapDir    = 'fmap';     % fieldmaps. DEFAULT: 'fmap'
     params.excludeDir = 'excluded'; % excluded functional runs. DEFAULT: 'excluded'
-    params.sequenceInfoName = 'sequenceInfo.m';
+    params.sequenceInfoName = 'sequenceInfo.mat';
 
     % Other specificiations
     params.formatSpec    = '%03i'; % Format specification for the subject (e.g., 'sub-001').
@@ -220,41 +220,67 @@ try
     ses2_tasks  = {'TMSlow','TMShigh'};   % which task in session 2
 
     % Enter values per subject of interest
-    %sub-003
-    ss = 1; % subject INDEX from "subjects" array, rawSubNames and subNames; sub-003
+%     %sub-003
+%     ss = 1; % subject INDEX from "subjects" array, rawSubNames and subNames; sub-003
+%     subj_params(ss).rawname     = params.rawSubNames{ss};
+%     subj_params(ss).sourcename  = params.subNames{ss};
+%     subj_params(ss).ses2run     = 1; % index from session in param.sesDirs % 1 == session 1, 2 == session 2
+%     subj_params(ss).hdr         = hdr;
+%     subj_params(ss).ses(1).runs     = {{'4'},{'5'},{'6'},{'7'},{'8'},{'9'},{'10'},{'11'}}'; % which functional runs to trasnfer and rename.
+%     subj_params(ss).ses(1).nrImages = [230, 230, repmat(331,1,6)]; % If known: add this to sanity check the number of images (not necessary).
+%     subj_params(ss).ses(1).run2exclude = []; % which runs to exclude (will be put into a separate folder). Leave empty is no run should be excluded.
+%     subj_params(ss).ses(1).tasks       = {ses1_tasks{2},ses1_tasks{2},ses1_tasks{1},ses1_tasks{1},ses1_tasks{1},ses1_tasks{1},ses1_tasks{1},ses1_tasks{1}}';
+%     params.ses2run{ss}          = subj_params(ss).ses2run; % add to params for other scripts
+% 
+%     % sub-004
+%     ss = ss+1; % subject INDEX from "subjects" array, rawSubNames and subNames; 
+%     subj_params(ss).rawname     = params.rawSubNames{ss};
+%     subj_params(ss).sourcename  = params.subNames{ss};
+%     subj_params(ss).ses2run     = 1; % index from session in param.sesDirs % 1 == session 1, 2 == session 2
+%     subj_params(ss).hdr         = hdr;
+%     subj_params(ss).ses(1).runs     = {{'4'},{'5'},{'6'},{'7'},{'8'},{'9'},{'10'},{'11'}}'; % which functional runs to trasnfer and rename.
+%     subj_params(ss).ses(1).nrImages = [230, 230, repmat(331,1,6)]; % If known: add this to sanity check the number of images (not necessary).
+%     subj_params(ss).ses(1).run2exclude = []; % which runs to exclude (will be put into a separate folder). Leave empty is no run should be excluded.
+%     subj_params(ss).ses(1).tasks       = {ses1_tasks{2},ses1_tasks{2},ses1_tasks{1},ses1_tasks{1},ses1_tasks{1},ses1_tasks{1},ses1_tasks{1},ses1_tasks{1}}';
+%     params.ses2run{ss}          = subj_params(ss).ses2run; % add to params for other scripts
+% 
+%     % sub-005
+%     ss = ss+1; % subject INDEX from "subjects" array, rawSubNames and subNames; 
+%     subj_params(ss).rawname     = params.rawSubNames{ss};
+%     subj_params(ss).sourcename  = params.subNames{ss};
+%     subj_params(ss).ses2run     = 1; % index from session in param.sesDirs % 1 == session 1, 2 == session 2
+%     subj_params(ss).hdr         = hdr;
+%     subj_params(ss).ses(1).runs     = {{'4'},{'5'},{'6'},{'7'},{'9'},{'10'},{'11'},{'12'}}'; % which functional runs to trasnfer and rename.
+%     subj_params(ss).ses(1).nrImages = [230, 230, repmat(331,1,6)]; % If known: add this to sanity check the number of images (not necessary).
+%     subj_params(ss).ses(1).run2exclude = []; % which runs to exclude (will be put into a separate folder). Leave empty is no run should be excluded.
+%     subj_params(ss).ses(1).tasks       = {ses1_tasks{2},ses1_tasks{2},ses1_tasks{1},ses1_tasks{1},ses1_tasks{1},ses1_tasks{1},ses1_tasks{1},ses1_tasks{1}}';
+%     params.ses2run{ss}          = subj_params(ss).ses2run; % add to params for other scripts
+
+    % sub-006
+    ss = 1; % subject INDEX from "subjects" array, rawSubNames and subNames; 
     subj_params(ss).rawname     = params.rawSubNames{ss};
     subj_params(ss).sourcename  = params.subNames{ss};
     subj_params(ss).ses2run     = 1; % index from session in param.sesDirs % 1 == session 1, 2 == session 2
     subj_params(ss).hdr         = hdr;
-    subj_params(ss).ses(1).runs     = {{'4'},{'5'},{'6'},{'7'},{'8'},{'9'},{'10'},{'11'}}'; % which functional runs to trasnfer and rename.
-    subj_params(ss).ses(1).nrImages = [230, 230, repmat(331,1,6)]; % If known: add this to sanity check the number of images (not necessary).
+    subj_params(ss).ses(1).runs = {{'4'},{'5'},{'6'},{'7'},{'8'},{'9'},{'10'}}'; % which functional runs to trasnfer and rename.
+    subj_params(ss).ses(1).nrImages = [repmat(331,1,7)]; % If known: add this to sanity check the number of images (not necessary).
     subj_params(ss).ses(1).run2exclude = []; % which runs to exclude (will be put into a separate folder). Leave empty is no run should be excluded.
-    subj_params(ss).ses(1).tasks       = {ses1_tasks{2},ses1_tasks{2},ses1_tasks{1},ses1_tasks{1},ses1_tasks{1},ses1_tasks{1},ses1_tasks{1},ses1_tasks{1}}';
-    params.ses2run{ss}          = subj_params(ss).ses2run; % add to params for other scripts
+    subj_params(ss).ses(1).tasks = {ses1_tasks{2},ses1_tasks{1},ses1_tasks{1},ses1_tasks{1},ses1_tasks{1},ses1_tasks{1},ses1_tasks{1}}';
+    params.ses2run{ss}           = subj_params(ss).ses2run; % add to params for other scripts
 
-    % sub-004
+    % sub-007
     ss = ss+1; % subject INDEX from "subjects" array, rawSubNames and subNames; 
     subj_params(ss).rawname     = params.rawSubNames{ss};
     subj_params(ss).sourcename  = params.subNames{ss};
     subj_params(ss).ses2run     = 1; % index from session in param.sesDirs % 1 == session 1, 2 == session 2
     subj_params(ss).hdr         = hdr;
-    subj_params(ss).ses(1).runs     = {{'4'},{'5'},{'6'},{'7'},{'8'},{'9'},{'10'},{'11'}}'; % which functional runs to trasnfer and rename.
-    subj_params(ss).ses(1).nrImages = [230, 230, repmat(331,1,6)]; % If known: add this to sanity check the number of images (not necessary).
+    subj_params(ss).ses(1).runs     = {{'4'},{'5'},{'6'},{'7'},{'8'},{'9'},{'10'}}'; % which functional runs to trasnfer and rename.
+    subj_params(ss).ses(1).nrImages = [230, repmat(331,1,6)]; % If known: add this to sanity check the number of images (not necessary).
     subj_params(ss).ses(1).run2exclude = []; % which runs to exclude (will be put into a separate folder). Leave empty is no run should be excluded.
-    subj_params(ss).ses(1).tasks       = {ses1_tasks{2},ses1_tasks{2},ses1_tasks{1},ses1_tasks{1},ses1_tasks{1},ses1_tasks{1},ses1_tasks{1},ses1_tasks{1}}';
+    subj_params(ss).ses(1).tasks       = {ses1_tasks{2},ses1_tasks{1},ses1_tasks{1},ses1_tasks{1},ses1_tasks{1},ses1_tasks{1},ses1_tasks{1}}';
     params.ses2run{ss}          = subj_params(ss).ses2run; % add to params for other scripts
 
-    % sub-005
-    ss = ss+1; % subject INDEX from "subjects" array, rawSubNames and subNames; 
-    subj_params(ss).rawname     = params.rawSubNames{ss};
-    subj_params(ss).sourcename  = params.subNames{ss};
-    subj_params(ss).ses2run     = 1; % index from session in param.sesDirs % 1 == session 1, 2 == session 2
-    subj_params(ss).hdr         = hdr;
-    subj_params(ss).ses(1).runs     = {{'4'},{'5'},{'6'},{'7'},{'9'},{'10'},{'11'},{'12'}}'; % which functional runs to trasnfer and rename.
-    subj_params(ss).ses(1).nrImages = [230, 230, repmat(331,1,6)]; % If known: add this to sanity check the number of images (not necessary).
-    subj_params(ss).ses(1).run2exclude = []; % which runs to exclude (will be put into a separate folder). Leave empty is no run should be excluded.
-    subj_params(ss).ses(1).tasks       = {ses1_tasks{2},ses1_tasks{2},ses1_tasks{1},ses1_tasks{1},ses1_tasks{1},ses1_tasks{1},ses1_tasks{1},ses1_tasks{1}}';
-    params.ses2run{ss}          = subj_params(ss).ses2run; % add to params for other scripts
+
 
     if length(subj_params) ~= n_subjects; error('Wrong number of subjects specified/wrong number of subjects defined'); end
 
