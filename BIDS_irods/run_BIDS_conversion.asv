@@ -134,7 +134,7 @@ disp('Running the following steps'); disp(do);
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 try
     % DEFINE SUBJECTS
-    subjects = [23]; %#ok<*NBRAK> % Array with subject number (for Dicoms AND niftis). If EMPTY: if will get ALL subjects with param.prefix and RENAME them to sub-001, sub-002, etc!
+    subjects = [24, 25, 26, 27]; %#ok<*NBRAK> % Array with subject number (for Dicoms AND niftis). If EMPTY: if will get ALL subjects with param.prefix and RENAME them to sub-001, sub-002, etc!
 
     n_subjects = length(subjects);
 
@@ -464,84 +464,44 @@ try
 
     
     % sub-022 % SHORT GAP because participant went to the toilet.
-%         ss = 1; % subject INDEX from "subjects" array, rawSubNames and subNames;
-%         subj_params(ss).rawname     = params.rawSubNames{ss};
-%         subj_params(ss).sourcename  = params.subNames{ss};
-%         subj_params(ss).numname     = 22;
-%         subj_params(ss).ses2run     = 1; % index from session in param.sesDirs % 1 == session 1, 2 == session 2
-%         subj_params(ss).hdr         = hdr;
-%         subj_params(ss).ses(1).runs = {{'4'},{'5'},{'6'},{'7'},{'9'},{'10'},{'11'}}'; % which functional runs to trasnfer and rename. FM in between. Also first run was "5" but cancelled as participant pressed alarm ball and claimed to have performed the task wrongly. Restarted.
-%         subj_params(ss).ses(1).nrImages = [230, repmat(331,1,6)]; % If known: add this to sanity check the number of images (not necessary).
-%         subj_params(ss).ses(1).run2exclude = []; % which runs to exclude (will be put into a separate folder). Leave empty is no run should be excluded.
-%         subj_params(ss).ses(1).tasks = {ses1_tasks{2},ses1_tasks{1},ses1_tasks{1},ses1_tasks{1},ses1_tasks{1},ses1_tasks{1},ses1_tasks{1}}';
-%         params.ses2run{ss}           = subj_params(ss).ses2run; % add to params for other scripts
-
-%         % sub-023
         ss = 1; % subject INDEX from "subjects" array, rawSubNames and subNames;
         subj_params(ss).rawname     = params.rawSubNames{ss};
         subj_params(ss).sourcename  = params.subNames{ss};
-        subj_params(ss).numname     = 23;
+        subj_params(ss).numname     = 22;
         subj_params(ss).ses2run     = 1; % index from session in param.sesDirs % 1 == session 1, 2 == session 2
         subj_params(ss).hdr         = hdr;
-        subj_params(ss).ses(1).runs = {{'4'},{'5'},{'6'},{'7'},{'9'},{'8'},{'10'}}'; % which functional runs to trasnfer and rename.
+        subj_params(ss).ses(1).runs = {{'4'},{'5'},{'6'},{'7'},{'9'},{'10'},{'11'}}'; % which functional runs to trasnfer and rename. FM in between. Also first run was "5" but cancelled as participant pressed alarm ball and claimed to have performed the task wrongly. Restarted.
+        subj_params(ss).ses(1).nrImages = [230, repmat(331,1,6)]; % If known: add this to sanity check the number of images (not necessary).
+        subj_params(ss).ses(1).run2exclude = []; % which runs to exclude (will be put into a separate folder). Leave empty is no run should be excluded.
+        subj_params(ss).ses(1).tasks = {ses1_tasks{2},ses1_tasks{1},ses1_tasks{1},ses1_tasks{1},ses1_tasks{1},ses1_tasks{1},ses1_tasks{1}}';
+        params.ses2run{ss}           = subj_params(ss).ses2run; % add to params for other scripts
+
+        % sub-024
+        ss = ss + 1; % subject INDEX from "subjects" array, rawSubNames and subNames;
+        subj_params(ss).rawname     = params.rawSubNames{ss};
+        subj_params(ss).sourcename  = params.subNames{ss};
+        subj_params(ss).numname     = 24;
+        subj_params(ss).ses2run     = 1; % index from session in param.sesDirs % 1 == session 1, 2 == session 2
+        subj_params(ss).hdr         = hdr;
+        subj_params(ss).ses(1).runs = {{'4'},{'5'},{'6'},{'7'},{'8'},{'9'},{'10'}}'; % which functional runs to trasnfer and rename. FM in between. Also first run was "5" but cancelled as participant pressed alarm ball and claimed to have performed the task wrongly. Restarted.
         subj_params(ss).ses(1).nrImages = [230, repmat(331,1,6)]; % If known: add this to sanity check the number of images (not necessary).
         subj_params(ss).ses(1).run2exclude = []; % which runs to exclude (will be put into a separate folder). Leave empty is no run should be excluded.
         subj_params(ss).ses(1).tasks = {ses1_tasks{2},ses1_tasks{1},ses1_tasks{1},ses1_tasks{1},ses1_tasks{1},ses1_tasks{1},ses1_tasks{1}}';
         params.ses2run{ss}           = subj_params(ss).ses2run; % add to params for other scripts
 
 
-%         % sub-024
-%         ss = ss + 1; % subject INDEX from "subjects" array, rawSubNames and subNames;
-%         subj_params(ss).rawname     = params.rawSubNames{ss};
-%         subj_params(ss).sourcename  = params.subNames{ss};
-%         subj_params(ss).numname     = 24;
-%         subj_params(ss).ses2run     = 1; % index from session in param.sesDirs % 1 == session 1, 2 == session 2
-%         subj_params(ss).hdr         = hdr;
-%         subj_params(ss).ses(1).runs = {{'4'},{'5'},{'6'},{'7'},{'8'},{'9'},{'10'}}'; % which functional runs to trasnfer and rename. FM in between. Also first run was "5" but cancelled as participant pressed alarm ball and claimed to have performed the task wrongly. Restarted.
-%         subj_params(ss).ses(1).nrImages = [230, repmat(331,1,6)]; % If known: add this to sanity check the number of images (not necessary).
-%         subj_params(ss).ses(1).run2exclude = []; % which runs to exclude (will be put into a separate folder). Leave empty is no run should be excluded.
-%         subj_params(ss).ses(1).tasks = {ses1_tasks{2},ses1_tasks{1},ses1_tasks{1},ses1_tasks{1},ses1_tasks{1},ses1_tasks{1},ses1_tasks{1}}';
-%         params.ses2run{ss}           = subj_params(ss).ses2run; % add to params for other scripts
-% 
-%         % sub-025
-%         ss = ss + 1; % subject INDEX from "subjects" array, rawSubNames and subNames;
-%         subj_params(ss).rawname     = params.rawSubNames{ss};
-%         subj_params(ss).sourcename  = params.subNames{ss};
-%         subj_params(ss).numname     = 25;
-%         subj_params(ss).ses2run     = 1; % index from session in param.sesDirs % 1 == session 1, 2 == session 2
-%         subj_params(ss).hdr         = hdr;
-%         subj_params(ss).ses(1).runs = {{'4'},{'5'},{'6'},{'7'},{'8'},{'9'},{'10'},{'13'}}'; % which functional runs to trasnfer and rename. FM in between. Also first run was "5" but cancelled as participant pressed alarm ball and claimed to have performed the task wrongly. Restarted.
-%         subj_params(ss).ses(1).nrImages = [230, repmat(331,1,6), 230]; % If known: add this to sanity check the number of images (not necessary).
-%         subj_params(ss).ses(1).run2exclude = []; % which runs to exclude (will be put into a separate folder). Leave empty is no run should be excluded.
-%         subj_params(ss).ses(1).tasks = {ses1_tasks{2},ses1_tasks{1},ses1_tasks{1},ses1_tasks{1},ses1_tasks{1},ses1_tasks{1},ses1_tasks{1},ses1_tasks{2}}';
-%         params.ses2run{ss}           = subj_params(ss).ses2run; % add to params for other scripts
-
-        % sub-026
-%         ss = 1; % subject INDEX from "subjects" array, rawSubNames and subNames;
-%         subj_params(ss).rawname     = params.rawSubNames{ss};
-%         subj_params(ss).sourcename  = params.subNames{ss};
-%         subj_params(ss).numname     = 26;
-%         subj_params(ss).ses2run     = 1; % index from session in param.sesDirs % 1 == session 1, 2 == session 2
-%         subj_params(ss).hdr         = hdr;
-%         subj_params(ss).ses(1).runs = {{'4'},{'5'},{'6'},{'7'},{'8'},{'9'},{'10'},{'13'}}'; % which functional runs to trasnfer and rename. FM in between. Also first run was "5" but cancelled as participant pressed alarm ball and claimed to have performed the task wrongly. Restarted.
-%         subj_params(ss).ses(1).nrImages = [230, repmat(331,1,6), 230]; % If known: add this to sanity check the number of images (not necessary).
-%         subj_params(ss).ses(1).run2exclude = []; % which runs to exclude (will be put into a separate folder). Leave empty is no run should be excluded.
-%         subj_params(ss).ses(1).tasks = {ses1_tasks{2},ses1_tasks{1},ses1_tasks{1},ses1_tasks{1},ses1_tasks{1},ses1_tasks{1},ses1_tasks{1},ses1_tasks{2}}';
-%         params.ses2run{ss}           = subj_params(ss).ses2run; % add to params for other scripts
-%         
-%         % sub-027
-%         ss = ss + 1; % subject INDEX from "subjects" array, rawSubNames and subNames;
-%         subj_params(ss).rawname     = params.rawSubNames{ss};
-%         subj_params(ss).sourcename  = params.subNames{ss};
-%         subj_params(ss).numname     = 27;
-%         subj_params(ss).ses2run     = 1; % index from session in param.sesDirs % 1 == session 1, 2 == session 2
-%         subj_params(ss).hdr         = hdr;
-%         subj_params(ss).ses(1).runs = {{'4'},{'5'},{'6'},{'7'},{'8'},{'9'},{'10'},{'13'}}'; % which functional runs to trasnfer and rename. FM in between. Also first run was "5" but cancelled as participant pressed alarm ball and claimed to have performed the task wrongly. Restarted.
-%         subj_params(ss).ses(1).nrImages = [230, repmat(331,1,6), 230]; % If known: add this to sanity check the number of images (not necessary).
-%         subj_params(ss).ses(1).run2exclude = []; % which runs to exclude (will be put into a separate folder). Leave empty is no run should be excluded.
-%         subj_params(ss).ses(1).tasks = {ses1_tasks{2},ses1_tasks{1},ses1_tasks{1},ses1_tasks{1},ses1_tasks{1},ses1_tasks{1},ses1_tasks{1},ses1_tasks{2}}';
-%         params.ses2run{ss}           = subj_params(ss).ses2run; % add to params for other scripts
-
+        % sub-025
+        ss = ss + 1; % subject INDEX from "subjects" array, rawSubNames and subNames;
+        subj_params(ss).rawname     = params.rawSubNames{ss};
+        subj_params(ss).sourcename  = params.subNames{ss};
+        subj_params(ss).numname     = 25;
+        subj_params(ss).ses2run     = 1; % index from session in param.sesDirs % 1 == session 1, 2 == session 2
+        subj_params(ss).hdr         = hdr;
+        subj_params(ss).ses(1).runs = {{'4'},{'5'},{'6'},{'7'},{'8'},{'9'},{'10'},{'13'}}'; % which functional runs to trasnfer and rename. FM in between. Also first run was "5" but cancelled as participant pressed alarm ball and claimed to have performed the task wrongly. Restarted.
+        subj_params(ss).ses(1).nrImages = [230, repmat(331,1,6)]; % If known: add this to sanity check the number of images (not necessary).
+        subj_params(ss).ses(1).run2exclude = []; % which runs to exclude (will be put into a separate folder). Leave empty is no run should be excluded.
+        subj_params(ss).ses(1).tasks = {ses1_tasks{2},ses1_tasks{1},ses1_tasks{1},ses1_tasks{1},ses1_tasks{1},ses1_tasks{1},ses1_tasks{1}}';
+        params.ses2run{ss}           = subj_params(ss).ses2run; % add to params for other scripts
     %%%%%%%%%%%
     % SES-02
     %%%%%%%%%%%
